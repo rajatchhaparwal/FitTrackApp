@@ -88,16 +88,16 @@ const CategoryTab = ({ label, selected, onPress }) => (
 
 
 const WorkoutCard = memo(({ workout, onPress }) => {
-  // 1. Map JSON fields to UI variables
+
   const name = workout.name || "Unknown Exercise";
-  const level = workout.level || "beginner"; // matches your JSON 'beginner'
+  const level = workout.level || "beginner";
   const equipment = workout.equipment || "Body only";
   
-  // 2. Derive UI values since JSON doesn't have duration/calories
+  
   const duration = 30; 
   const kcal = level === 'beginner' ? 120 : 250;
 
-  // 3. Determine Emoji based on primary muscle
+
   const getEmoji = () => {
     const muscle = workout.primaryMuscles?.[0] || "";
     if (muscle.includes('abdominals')) return '💪';
@@ -171,7 +171,7 @@ const WorkoutCard = memo(({ workout, onPress }) => {
   );
 });
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+// ─── Main Screen ──
 
 const WorkoutTracker = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -182,7 +182,7 @@ const WorkoutTracker = () => {
 useEffect(() => {
     const fetchExerciseData = async () => {
       try {
-        const response = await axios.get("http://10.187.9.35:5000/Exercisedata");
+        const response = await axios.get("http://10.145.6.81:5000/Exercisedata");
         setExercises(Array.isArray(response.data) ? response.data : []);
         console.log(response.data.length)
       } catch (err) {
@@ -229,10 +229,10 @@ const filtered = selectedCategory === 'All'
       windowSize={5}
       removeClippedSubviews={true}
       
-      // Moving your UI into the Header so it stays at the top
+    
       ListHeaderComponent={() => (
         <View style={styles.scroll}>
-          {/* ── Header ───────────────────────────────────── */}
+          {/* ── Header ─────── */}
           <View style={styles.header}>
             <View>
               <Text style={styles.headerSub}>Ready to train?</Text>
@@ -243,14 +243,14 @@ const filtered = selectedCategory === 'All'
             </TouchableOpacity>
           </View>
 
-          {/* ── Quick Stats ───────────────────────────────── */}
+          {/* ── Quick Stats ──── */}
           <View style={styles.statsRow}>
             <StatPill icon="fire" value="1,240" label="kcal burned" color="#FF6B6B" />
             <StatPill icon="clock-outline" value="3h 20m" label="active time" color="#5a8bff" />
             <StatPill icon="trophy-outline" value="12" label="workouts" color="#F5A623" />
           </View>
 
-          {/* ── Weekly Progress ───────────────────────────── */}
+          {/* ── Weekly Progress ──── */}
           <WeekProgress />
 
           {/* ── Category Tabs ─────────────────────────────── */}

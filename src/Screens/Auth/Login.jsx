@@ -1,57 +1,88 @@
-import React, { useState } from 'react'
-import { StyleSheet,
-         Text, 
-         TextInput,
-         TouchableOpacity, 
-         View ,
-         KeyboardAvoidingView, Platform, 
-         Alert} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import React, { useState } from 'react';
+import { 
+  StyleSheet, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  View, 
+  KeyboardAvoidingView, 
+  Platform, 
+  Alert, 
+  ActivityIndicator,
+  TouchableWithoutFeedback,
+  Keyboard
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-// User authenticates with phone number; extra details (name, age, weight) entered after.
-// If already logged in and app reinstalled, only phone number auth is needed.
+const Login = ({ navigation }) => {
+  const [number, setNumber] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-const Login = ({navigation}) => {
-  const [number,setNumber] = useState('');
-
-  const handleOnsubmit = () =>{
-    setNumber(number);
-    if(number){
-      navigation.navigate('Otp')
-      Alert.alert("Otp sent to your registered mobile number");
+  const handleOnSubmit = () => {
+    if (number.length < 10) {
+      Alert.alert("Invalid Number", "Please enter a valid 10-digit phone number.");
+      return;
     }
-  }
-  return (
-   <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
-      >
-        <View style={styles.headerContainer}>
-          <Text style={styles.title}> Welcome To Fittrack App</Text>
-          <Text style={styles.subtitle}>Enter your phone number to start your fitness journey</Text>
-        </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Phone Number</Text>
-          <TextInput 
-            value={number}
-            placeholder='+91 123 456 7890'
-            placeholderTextColor="#999"
-            onChangeText={setNumber}
-            keyboardType="phone-pad"
-            style={styles.input}
-          />
-          
-          <TouchableOpacity 
-            onPress={handleOnsubmit} 
-            style={styles.button}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.buttonText}>Get OTP</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+    setIsLoading(true);
+
+    // Simulating an API call
+    setTimeout(() => {
+      setIsLoading(false);
+      Alert.alert("OTP Sent", `A verification code has been sent to +91 ${number}`);
+      navigation.navigate('Otp');
+    }, 1500);
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.content}
+        >
+          <View style={styles.headerContainer}>
+            <Text style={styles.title}>FitTrack</Text>
+            <Text style={styles.subtitle}>
+              Enter your phone number to start your fitness journey
+            </Text>
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Phone Number</Text>
+            <View style={styles.phoneInputWrapper}>
+              <Text style={styles.countryCode}>+91</Text>
+              <TextInput 
+                value={number}
+                placeholder='000 000 0000'
+                placeholderTextColor="#A0A0A0"
+                onChangeText={(text) => setNumber(text.replace(/[^0-9]/g, ''))} // Only allow numbers
+                keyboardType="phone-pad"
+                maxLength={10}
+                style={styles.input}
+              />
+            </View>
+            
+            <TouchableOpacity 
+              onPress={handleOnSubmit} 
+              style={[styles.button, number.length < 10 && styles.buttonDisabled]}
+              activeOpacity={0.8}
+              disabled={isLoading || number.length < 10}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.buttonText}>Continue</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.footerText}>
+            By continuing, you agree to our <Text style={styles.link}>Terms of Service</Text>
+          </Text>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 };
@@ -63,61 +94,93 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 25,
+    paddingHorizontal: 30,
     justifyContent: 'center',
   },
   headerContainer: {
-    marginBottom: 40,
+    marginBottom: 50,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 34,
+    fontWeight: '800',
     color: '#1A1A1A',
-    marginBottom: 10,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
-    lineHeight: 22,
+    color: '#717171',
+    marginTop: 10,
+    lineHeight: 24,
   },
   inputContainer: {
     width: '100%',
   },
   label: {
     fontSize: 14,
+    fontWeight: '700',
+    color: '#444',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  phoneInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#EEE',
+    paddingHorizontal: 15,
+    marginBottom: 25,
+  },
+  countryCode: {
+    fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 8,
-    marginLeft: 4,
+    paddingRight: 10,
+    borderRightWidth: 1,
+    borderRightColor: '#DDD',
   },
   input: {
-    height: 55,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
+    flex: 1,
+    height: 60,
     paddingHorizontal: 15,
-    fontSize: 16,
+    fontSize: 18,
     color: '#000',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    marginBottom: 20,
+    fontWeight: '500',
   },
   button: {
-    backgroundColor: '#5a8bffff',
-    height: 55,
-    borderRadius: 12,
+    backgroundColor: '#5A8BFF',
+    height: 60,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowColor: '#5A8BFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  buttonDisabled: {
+    backgroundColor: '#B0C4FF',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   buttonText: {
     color: '#FFF',
     fontSize: 18,
     fontWeight: 'bold',
   },
+  footerText: {
+    textAlign: 'center',
+    color: '#999',
+    fontSize: 12,
+    marginTop: 25,
+  },
+  link: {
+    color: '#5A8BFF',
+    fontWeight: '600',
+  }
 });
 
 export default Login;

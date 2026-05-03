@@ -1,54 +1,116 @@
-import {StyleSheet,
-         Text, 
-         TextInput,
-         TouchableOpacity, 
-         View ,
-         KeyboardAvoidingView, Platform,} from 'react-native'
-import React, { useState } from 'react'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Keyboard,
+  TouchableWithoutFeedback
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
-const Otp = ({navigation,setIsLogged}) => {
-  const [otp,setOtp] = useState("")
-    const handleOnsubmit =()=>{
-        setIsLogged(true);
-        navigation.navigate('MainApp');
-      }
+
+const Otp = ({ navigation, setIsLogged }) => {
+  const [otp, setOtp] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [timer, setTimer] = useState(30);
+  const inputRef = useRef(null);
+
+
+  useEffect(() => {
+    let interval;
+    if (timer > 0) {
+      interval = setInterval(() => setTimer(prev => prev - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
+
+  const handleOnSubmit = () => {
+    if (otp.length < 6) return;
+
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+      setIsLogged(true);
+    }, 1500);
+  };
+
+  const handleResend = () => {
+    setTimer(30);
+    // API call for resending OTP 
+  };
+
   return (
-   <SafeAreaView style={styles.container}>
-         <KeyboardAvoidingView 
-           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-           style={styles.content}
-         >
-           <View style={styles.headerContainer}>
-             <Text style={styles.subtitle}>Enter 6 Digit Otp Sent To Your Phone Number</Text>
-           </View>
-   
-           <View style={styles.inputContainer}>
-             <Text style={styles.label}>Enter Otp</Text>
-             <TextInput 
-               value={otp}
-               placeholder='123456'
-               placeholderTextColor="#999"
-               onChangeText={setOtp}
-               keyboardType="phone-pad"
-               style={styles.input}
-             />
-             
-             <TouchableOpacity 
-               onPress={handleOnsubmit} 
-               style={styles.button}
-               activeOpacity={0.8}
-             >
-               <Text style={styles.buttonText}>Submit</Text>
-             </TouchableOpacity>
-           </View>
-         </KeyboardAvoidingView>
-       </SafeAreaView>
+    <SafeAreaView style={styles.container}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.content}
+        >
+          {/* Back Button */}
+          <TouchableOpacity 
+            onPress={() => navigation.goBack()} 
+            style={styles.backButton}
+          >
+            <Text style={styles.backButtonText}>{<Icon name="arrow-back" style={{paddingTop:10}} size={24} color="#000" />} Change Number</Text>
+          </TouchableOpacity>
+
+          <View style={styles.headerContainer}>
+            <Text style={styles.title}>Verification</Text>
+            <Text style={styles.subtitle}>
+              We've sent a 6-digit code to your phone. Enter it below to continue.
+            </Text>
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>OTP Code</Text>
+            <TextInput
+              ref={inputRef}
+              value={otp}
+              placeholder='000000'
+              placeholderTextColor="#A0A0A0"
+              onChangeText={(text) => setOtp(text.replace(/[^0-9]/g, ''))}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoFocus={true}
+              letterSpacing={10}
+              style={styles.input}
+            />
+
+            <TouchableOpacity
+              onPress={handleOnSubmit}
+              style={[styles.button, otp.length < 6 && styles.buttonDisabled]}
+              activeOpacity={0.8}
+              disabled={isLoading || otp.length < 6}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.buttonText}>Verify & Proceed</Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.resendContainer}>
+              <Text style={styles.resendText}>Didn't receive the code? </Text>
+              {timer > 0 ? (
+                <Text style={styles.timerText}>Resend in {timer}s</Text>
+              ) : (
+                <TouchableOpacity onPress={handleResend}>
+                  <Text style={styles.resendLink}>Resend OTP</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
+    </SafeAreaView>
   );
-}
-
-export default Otp
-
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -57,59 +119,96 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 25,
-    justifyContent: 'center',
+    paddingHorizontal: 30,
+  },
+  backButton: {
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  backButtonText: {
+    color: '#000000ff',
+    fontWeight: '600',
+    fontSize: 18,
   },
   headerContainer: {
     marginBottom: 40,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 34,
+    fontWeight: '800',
     color: '#1A1A1A',
-    marginBottom: 10,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
-    lineHeight: 22,
+    color: '#717171',
+    marginTop: 10,
+    lineHeight: 24,
   },
   inputContainer: {
     width: '100%',
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    marginLeft: 4,
+    fontWeight: '700',
+    color: '#444',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   input: {
-    height: 55,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    fontSize: 16,
+    height: 70,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#EEE',
+    paddingHorizontal: 20,
+    fontSize: 28,
     color: '#000',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    marginBottom: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 25,
   },
   button: {
-    backgroundColor: '#5a8bffff',
-    height: 55,
-    borderRadius: 12,
+    backgroundColor: '#5A8BFF',
+    height: 60,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowColor: '#5A8BFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  buttonDisabled: {
+    backgroundColor: '#B0C4FF',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   buttonText: {
     color: '#FFF',
     fontSize: 18,
     fontWeight: 'bold',
   },
+  resendContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 25,
+  },
+  resendText: {
+    color: '#999',
+    fontSize: 14,
+  },
+  resendLink: {
+    color: '#5A8BFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  timerText: {
+    color: '#444',
+    fontWeight: '600',
+    fontSize: 14,
+  },
 });
+
+export default Otp;

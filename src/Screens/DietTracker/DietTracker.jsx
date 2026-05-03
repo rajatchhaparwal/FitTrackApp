@@ -14,7 +14,7 @@ const slider = [
 const DietTracker = ({navigation}) => {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* 1. Header with Settings Icon */}
+      {/* Header */}
       <View style={styles.topHeader}>
         <TouchableOpacity onPress={()=> navigation.goBack()}>
         <Icon name="arrow-back" size={24} color="#000" />
@@ -37,7 +37,7 @@ const DietTracker = ({navigation}) => {
         <Icon name="bar-chart" size={24} color="#5a8bff" opacity={0.5} />
       </View>
 
-      {/* 3. Horizontal Action Icons */}
+      {/* 3. Horizontal Icons */}
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false} 
