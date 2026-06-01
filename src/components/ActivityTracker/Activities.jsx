@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import ActivityCard from './ActitvityCard'
-const Activities = () => {
+const Activities = ({userData}) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -9,27 +9,49 @@ const Activities = () => {
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <ActivityCard 
-          type="Steps" 
-          value="8,854" 
-          unit="Steps" 
-          updateTime="2m" 
-          icon="👣" 
-        />
-        <ActivityCard 
-          type="Workout" 
-          value="02:10" 
-          unit="hours" 
-          updateTime="1m" 
-          icon="🏋️" 
-        />
-        <ActivityCard 
-          type="Heart rate" 
-          value="102" 
-          unit="bpm" 
-          updateTime="34m" 
-          icon="❤️" 
-        />
+
+        
+      <ActivityCard
+  type="Calories"
+  trackValue={0}
+  value="1914"
+  unit="cal"
+  progress={72}
+  icon="🔥"
+  variant="calorie"
+  bgcolor="#FFFFFF"
+  iconcolor="#FFE8CC"/>
+
+<ActivityCard
+  type="Workout"
+  value="02:10"
+  unit="hrs"
+  icon="🏋️"
+  variant="Workout"/>
+
+  
+<ActivityCard
+  type="Drink Water"
+  trackValue={3}
+  value="12"
+  unit="glasses"
+  progress={60}
+  progressColor="#4FC3F7"
+  icon="💧"
+  variant="bar"
+/>
+
+<ActivityCard
+  type="Steps"
+  trackValue={100}
+  value="8,854"
+  unit="steps"
+  progress={88}
+  progressColor="#4FC3F7"
+  icon="👣"
+  variant="bar"
+/>
+
       </ScrollView>
     </View>
   );

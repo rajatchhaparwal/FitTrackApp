@@ -1,25 +1,117 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-const ActivityCard = ({ type, value, unit, updateTime, icon, bgcolor, iconcolor }) => {
-  return (
-    <View style={styles.card}>
-      {/* Title */}
-      <Text style={styles.typeText}>{type}</Text>
+const ActivityCard = ({
+  type,
+  value,
+  unit,
+  icon,
+  bgcolor,
+  iconcolor,
 
-      {/* Center Icon Section */}
-      <View style={[styles.iconContainer, { borderColor: iconcolor + '33' }]}>
-         {/* You can replace this Text with an <Image /> or Icon library later */}
-        <Text style={{ fontSize: 24 }}>{icon}</Text>
+  // Progress
+  progress = 0,
+  progressColor = '#4F8EF7',
+  trackValue,
+  // Variants
+  variant = 'bar', // bar | pulse
+}) => {
+
+  const cardBg = bgcolor || '#FFFFFF';
+  const themeColor = iconcolor || '#F5F5F5';
+
+  return (
+    <View style={[styles.card, { backgroundColor: cardBg }]}>
+
+      {/* Header */}
+      <View style={styles.headerRow}>
+        <Text style={styles.typeText} numberOfLines={2}>
+          {type}
+        </Text>
+
+        <View
+          style={[
+            styles.iconContainer,
+            { backgroundColor: themeColor },
+          ]}
+        >
+          <Text style={{ fontSize: 16 }}>
+            {icon}
+          </Text>
+        </View>
       </View>
 
-      {/* Value and Time Section */}
+      {/* Bottom */}
       <View style={styles.bottomSection}>
+
+        {/* Value */}
         <View style={styles.valueRow}>
-          <Text style={styles.valueText}>{value}</Text>
-          {unit ? <Text style={styles.unitText}> {unit}</Text> : null}
+          <Text style={styles.valueText}>
+          {unit === "steps" || unit === "glasses" || unit === "cal"? `${trackValue}/${value}`: value}
+          </Text>
+
+          {unit && (
+            <Text style={styles.unitText}>
+              {unit}
+            </Text>
+          )}
         </View>
-        <Text style={styles.updateText}>Updated {updateTime} ago</Text>
+
+        {/* Dynamic UI */}
+        {variant === 'calorie' && (
+  <>
+    <View style={styles.calorieRow}>
+
+      <View style={styles.calorieBackground}>
+        <View
+          style={[
+            styles.calorieFill,
+            {
+              width: `${progress}%`,
+            },
+          ]}
+        />
+      </View>
+
+      <Text style={styles.caloriePercent}>
+        {progress}%
+      </Text>
+
+    </View>
+
+    <Text style={styles.calorieText}>
+      Daily goal reached
+    </Text>
+  </>
+)}
+
+        {variant === 'bar' && (
+          <>
+            <View style={styles.progressBackground}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${progress}%`,
+                    backgroundColor: progressColor,
+                  },
+                ]}
+              />
+            </View>
+
+            <Text style={styles.progressText}>
+              {progress}% completed
+            </Text>
+          </>
+        )}
+
+        {variant === 'Workout' && (
+          <View style={styles.pulseContainer}>
+            <Text>Active Time</Text>
+            <View style={styles.pulseRow}></View>
+          </View>
+        )}
+
       </View>
     </View>
   );
@@ -27,51 +119,150 @@ const ActivityCard = ({ type, value, unit, updateTime, icon, bgcolor, iconcolor 
 
 const styles = StyleSheet.create({
   card: {
-    width: 120,
-    height: 160,
-    borderRadius: 20,
-    padding: 15,
-    marginBottom:5,
+    width: 160,
+    height: 150,
+    borderRadius: 24,
+    padding: 18,
     marginRight: 12,
+    marginBottom: 12,
     justifyContent: 'space-between',
-    alignItems: 'center',
-    borderRadius: 10,
-    borderWidth: 0.1,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)'
+
+    backgroundColor: '#FFF',
+
+    borderColor:'#000',
+    borderWidth:0,
+    elevation:1,
   },
+
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    width: '100%',
+  },
+
   typeText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: '#2D3142',
+    lineHeight: 18,
+    flex: 1,
+    marginRight: 8,
   },
+
   iconContainer: {
-    width: 50,
-    height: 50,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.4)', // Glass effect
   },
+
   bottomSection: {
-    alignItems: 'center',
+    width: '100%',
   },
+
   valueRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
+    marginBottom: 10,
   },
+
   valueText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111111',
   },
+
   unitText: {
-    fontSize: 10,
-    color: '#666',
-    marginLeft: 2,
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#9B9EAC',
+    marginLeft: 4,
   },
-  updateText: {
-    fontSize: 9,
-    color: '#999',
+
+  calorieRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  
+  calorieBackground: {
+    flex: 1,
+    height: 10,
+    backgroundColor: '#FFE7DE',
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginRight: 8,
+  },
+  
+  calorieFill: {
+    height: '100%',
+    backgroundColor: '#FF7A45',
+    borderRadius: 20,
+  },
+  
+  caloriePercent: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FF7A45',
+  },
+  
+  calorieText: {
+    marginTop: 6,
+    fontSize: 11,
+    color: '#9B9EAC',
+    fontWeight: '500',
+  },
+  // Progress Bar
+  progressBackground: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#ECECEC',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+
+  progressFill: {
+    height: '100%',
+    borderRadius: 20,
+  },
+
+  progressText: {
+    marginTop: 6,
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#9B9EAC',
+  },
+
+  // Heart Rate UI
+  pulseContainer: {
     marginTop: 2,
+  },
+
+  pulseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  pulseDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF4D6D',
+    marginRight: 6,
+  },
+
+  liveText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF4D6D',
+  },
+
+  heartStatus: {
+    marginTop: 6,
+    fontSize: 11,
+    color: '#9B9EAC',
+    fontWeight: '500',
   },
 });
 

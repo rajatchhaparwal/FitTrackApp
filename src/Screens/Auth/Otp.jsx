@@ -9,40 +9,66 @@ import {
   Platform,
   ActivityIndicator,
   Keyboard,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import {
+  verifyPhoneOtp,
+  resendPhoneOtp,
+  clearPhoneAuthSession,
+  getFirebaseAuthErrorMessage,
+} from '../../services/phoneAuth';
 
-
-const Otp = ({ navigation, setIsLogged }) => {
-  const [otp, setOtp] = useState("");
+const Otp = ({ navigation, route }) => {
+  const displayPhone = route.params?.displayPhone ?? 'your phone';
+  const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [timer, setTimer] = useState(30);
   const inputRef = useRef(null);
-
 
   useEffect(() => {
     let interval;
     if (timer > 0) {
-      interval = setInterval(() => setTimer(prev => prev - 1), 1000);
+      interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
     }
     return () => clearInterval(interval);
   }, [timer]);
 
-  const handleOnSubmit = () => {
-    if (otp.length < 6) return;
+  const handleOnSubmit = async () => {
+    if (otp.length < 6) {
+      return;
+    }
 
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      await verifyPhoneOtp(otp);
+    } catch (error) {
+      Alert.alert('Verification failed', getFirebaseAuthErrorMessage(error));
+    } finally {
       setIsLoading(false);
-      setIsLogged(true);
-    }, 1500);
+    }
   };
 
-  const handleResend = () => {
-    setTimer(30);
-    // API call for resending OTP 
+  const handleResend = async () => {
+    setIsResending(true);
+    try {
+      await resendPhoneOtp();
+      setTimer(30);
+      setOtp('');
+      Alert.alert('OTP sent', `A new code was sent to ${displayPhone}.`);
+    } catch (error) {
+      Alert.alert('Could not resend OTP', getFirebaseAuthErrorMessage(error));
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const handleGoBack = () => {
+    clearPhoneAuthSession();
+    navigation.goBack();
   };
 
   return (
@@ -52,18 +78,17 @@ const Otp = ({ navigation, setIsLogged }) => {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.content}
         >
-          {/* Back Button */}
-          <TouchableOpacity 
-            onPress={() => navigation.goBack()} 
-            style={styles.backButton}
-          >
-            <Text style={styles.backButtonText}>{<Icon name="arrow-back" style={{paddingTop:10}} size={24} color="#000" />} Change Number</Text>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+            <Text style={styles.backButtonText}>
+              {<Icon name="arrow-back" style={{ paddingTop: 10 }} size={24} color="#000" />}{' '}
+              Change Number
+            </Text>
           </TouchableOpacity>
 
           <View style={styles.headerContainer}>
             <Text style={styles.title}>Verification</Text>
             <Text style={styles.subtitle}>
-              We've sent a 6-digit code to your phone. Enter it below to continue.
+              We've sent a 6-digit code to {displayPhone}. Enter it below to continue.
             </Text>
           </View>
 
@@ -72,7 +97,7 @@ const Otp = ({ navigation, setIsLogged }) => {
             <TextInput
               ref={inputRef}
               value={otp}
-              placeholder='000000'
+              placeholder="000000"
               placeholderTextColor="#A0A0A0"
               onChangeText={(text) => setOtp(text.replace(/[^0-9]/g, ''))}
               keyboardType="number-pad"
@@ -100,8 +125,12 @@ const Otp = ({ navigation, setIsLogged }) => {
               {timer > 0 ? (
                 <Text style={styles.timerText}>Resend in {timer}s</Text>
               ) : (
-                <TouchableOpacity onPress={handleResend}>
-                  <Text style={styles.resendLink}>Resend OTP</Text>
+                <TouchableOpacity onPress={handleResend} disabled={isResending}>
+                  {isResending ? (
+                    <ActivityIndicator size="small" color="#5A8BFF" />
+                  ) : (
+                    <Text style={styles.resendLink}>Resend OTP</Text>
+                  )}
                 </TouchableOpacity>
               )}
             </View>

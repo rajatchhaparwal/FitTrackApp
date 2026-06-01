@@ -1,44 +1,51 @@
 import React, { useState } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  View, 
-  KeyboardAvoidingView, 
-  Platform, 
-  Alert, 
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
   ActivityIndicator,
   TouchableWithoutFeedback,
-  Keyboard
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { sendPhoneOtp, getFirebaseAuthErrorMessage } from '../../services/phoneAuth';
+import { formatPhoneE164, formatPhoneDisplay } from '../../utils/phoneNumber';
 
 const Login = ({ navigation }) => {
   const [number, setNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleOnSubmit = () => {
+  const handleOnSubmit = async () => {
     if (number.length < 10) {
-      Alert.alert("Invalid Number", "Please enter a valid 10-digit phone number.");
+      Alert.alert('Invalid Number', 'Please enter a valid 10-digit phone number.');
       return;
     }
 
+    const phoneNumber = formatPhoneE164(number);
     setIsLoading(true);
 
-    // Simulating an API call
-    setTimeout(() => {
+    try {
+      await sendPhoneOtp(phoneNumber);
+      navigation.navigate('Otp', {
+        phoneNumber,
+        displayPhone: formatPhoneDisplay(number),
+      });
+    } catch (error) {
+      Alert.alert('Could not send OTP', getFirebaseAuthErrorMessage(error));
+    } finally {
       setIsLoading(false);
-      Alert.alert("OTP Sent", `A verification code has been sent to +91 ${number}`);
-      navigation.navigate('Otp');
-    }, 1500);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.content}
         >
@@ -53,19 +60,19 @@ const Login = ({ navigation }) => {
             <Text style={styles.label}>Phone Number</Text>
             <View style={styles.phoneInputWrapper}>
               <Text style={styles.countryCode}>+91</Text>
-              <TextInput 
+              <TextInput
                 value={number}
-                placeholder='000 000 0000'
+                placeholder="000 000 0000"
                 placeholderTextColor="#A0A0A0"
-                onChangeText={(text) => setNumber(text.replace(/[^0-9]/g, ''))} // Only allow numbers
+                onChangeText={(text) => setNumber(text.replace(/[^0-9]/g, ''))}
                 keyboardType="phone-pad"
                 maxLength={10}
                 style={styles.input}
               />
             </View>
-            
-            <TouchableOpacity 
-              onPress={handleOnSubmit} 
+
+            <TouchableOpacity
+              onPress={handleOnSubmit}
               style={[styles.button, number.length < 10 && styles.buttonDisabled]}
               activeOpacity={0.8}
               disabled={isLoading || number.length < 10}
@@ -180,7 +187,7 @@ const styles = StyleSheet.create({
   link: {
     color: '#5A8BFF',
     fontWeight: '600',
-  }
+  },
 });
 
 export default Login;

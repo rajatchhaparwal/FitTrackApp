@@ -1,4 +1,4 @@
-import React, { useEffect, useState,memo } from 'react';
+import React, { useEffect, useState, memo } from 'react';
 import {
   View,
   Text,
@@ -9,73 +9,34 @@ import {
   StatusBar,
   ActivityIndicator,
   FlatList,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import axios from 'axios';
+import api_call from '../../../api';
+import { RowWorkoutCard, PortraitSquareCard, PromoBannerCard } from './DiscoverWorkouts';
+
 const { width } = Dimensions.get('window');
+const BODY_FOCUS_CATEGORIES = ['Abs', 'Arm', 'Chest', 'Leg', 'Shoulder'];
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
+// ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
 
-const CATEGORIES = ['All', 'Strength', 'Cardio', 'HIIT', 'Yoga', 'Flexibility'];
-
-
-const WEEK_DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-const COMPLETED_DAYS = [true, true, true, false, false, false, false]; // Mon-Wed done
-
-const DIFFICULTY_COLOR = {
-  Beginner: '#2ECC71',
-  Intermediate: '#F5A623',
-  Advanced: '#FF6B6B',
-};
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-const StatPill = ({ icon, value, label, color }) => (
-  <View style={[styles.statPill, { backgroundColor: `${color}18` }]}>
-    <Icon name={icon} size={18} color={color} />
+const StatPill = ({ icon, value, label, bgcolor, iconcolor }) => (
+  <View style={[styles.statPill, { backgroundColor: bgcolor }]}>
+    <View style={[styles.pillIconCircle, { backgroundColor: '#FFFFFF' }]}>
+      <Icon name={icon} size={18} color={iconcolor} />
+    </View>
     <View style={styles.statPillText}>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
+      <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
   </View>
 );
 
-const WeekProgress = () => (
-  <View style={styles.weekCard}>
-    <View style={styles.weekHeader}>
-      <Text style={styles.weekTitle}>This Week</Text>
-      <Text style={styles.weekSub}>3 / 5 sessions</Text>
-    </View>
-    <View style={styles.weekDays}>
-      {WEEK_DAYS.map((day, i) => (
-        <View key={i} style={styles.dayCol}>
-          <View
-            style={[
-              styles.dayDot,
-              COMPLETED_DAYS[i] ? styles.dayDotActive : styles.dayDotInactive,
-            ]}
-          >
-            {COMPLETED_DAYS[i] && (
-              <Icon name="check" size={10} color="#fff" />
-            )}
-          </View>
-          <Text style={[styles.dayLabel, COMPLETED_DAYS[i] && styles.dayLabelActive]}>
-            {day}
-          </Text>
-        </View>
-      ))}
-    </View>
-    {/* Progress bar */}
-    <View style={styles.progressBg}>
-      <View style={[styles.progressFill, { width: '40%' }]} />
-    </View>
-  </View>
-);
-
-const CategoryTab = ({ label, selected, onPress }) => (
+const BodyFocusTab = ({ label, selected, onPress }) => (
   <TouchableOpacity
-    activeOpacity={0.75}
+    activeOpacity={0.8}
     style={[styles.categoryTab, selected && styles.categoryTabActive]}
     onPress={onPress}
   >
@@ -85,494 +46,361 @@ const CategoryTab = ({ label, selected, onPress }) => (
   </TouchableOpacity>
 );
 
-
-
-const WorkoutCard = memo(({ workout, onPress }) => {
-
-  const name = workout.name || "Unknown Exercise";
-  const level = workout.level || "beginner";
-  const equipment = workout.equipment || "Body only";
-  
-  
-  const duration = 30; 
-  const kcal = level === 'beginner' ? 120 : 250;
-
-
-  const getEmoji = () => {
-    const muscle = workout.primaryMuscles?.[0] || "";
-    if (muscle.includes('abdominals')) return '💪';
-    if (muscle.includes('biceps') || muscle.includes('chest')) return '💪';
-    return '🏋️';
-
-  };
+const RoutineCard = memo(({ routine, navigation }) => {
+  const name = routine.title || "Untitled Routine";
+  const duration = routine.total_duration_minutes || 15;
+  const totalExercises = routine.exercises_sequence?.length || 0;
+  const difficultyRating = routine.difficulty_rating || 1;
+  const lastPlayedText = routine.last_played_date ? `Last time: ${routine.last_played_date}` : "Not started yet";
+  const imageUri = routine.thumbnail_image || 'https://via.placeholder.com/120';
 
   return (
     <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={onPress}
-      style={[styles.workoutCard, { backgroundColor: "rgba(90,139,255,0.08)" }]}
+      activeOpacity={0.9}
+      style={styles.routineCardContainer}
+      onPress={() => navigation.navigate('AbsBeginnerScreen', {
+        workoutId: routine.workout_id,
+        categoryId: routine.category_id,
+        name: name,
+        duration: `${duration} mins`,
+        totalExercises: totalExercises,
+        difficultyRating: difficultyRating,
+        imageUri: imageUri
+      })}
     >
-      {/* Left accent bar */}
-      <View style={[styles.accentBar, { backgroundColor: "#5a8bff" }]} />
-
-      <View style={styles.cardBody}>
-        <View style={styles.cardTopRow}>
-          <View style={[styles.emojiCircle, { backgroundColor: '#5a8bff22' }]}>
-            <Text style={styles.emojiText}>{getEmoji()}</Text>
-          </View>
-
-          <View style={styles.cardTitleGroup}>
-            <Text style={styles.cardName} numberOfLines={1}>{name}</Text>
-            
-            <View style={styles.difficultyBadge}>
-              <View
-                style={[
-                  styles.difficultyDot,
-                  { backgroundColor: DIFFICULTY_COLOR[level] || '#ccc' },
-                ]}
-              />
-              <Text style={[styles.difficultyText, { color: DIFFICULTY_COLOR[level] || '#666' }]}>
-                {level.charAt(0).toUpperCase() + level.slice(1)}
-              </Text>
-            </View>
-          </View>
+      <Image source={{ uri: imageUri }} style={styles.routineThumbnail} />
+      <View style={styles.routineDetailsGroup}>
+        <Text style={styles.routineMainTitle}>{name}</Text>
+        <Text style={styles.routineSubtext}>{duration} mins • {totalExercises} Exercises</Text>
+        
+        <View style={styles.intensityContainer}>
+          {[1, 2, 3].map((boltIndex) => (
+            <Icon 
+              key={boltIndex}
+              name="flash" 
+              size={14} 
+              color={boltIndex <= difficultyRating ? "#5A8BFF" : "#E0E0E0"} 
+              style={styles.boltIcon}
+            />
+          ))}
         </View>
 
-        {/* Stats row */}
-        <View style={styles.cardStats}>
-          <View style={styles.cardStat}>
-            <Icon name="clock-outline" size={14} color="#888" />
-            <Text style={styles.cardStatText}>{duration} min</Text>
-          </View>
-          
-          <View style={styles.cardStatDivider} />
-          
-          <View style={styles.cardStat}>
-            <Icon name="dumbbell" size={14} color="#888" />
-            <Text style={styles.cardStatText} numberOfLines={1}>
-               {equipment}
-            </Text>
-          </View>
-          
-          <View style={styles.cardStatDivider} />
-          
-          <View style={styles.cardStat}>
-            <Icon name="fire" size={14} color="#888" />
-            <Text style={styles.cardStatText}>{kcal} kcal</Text>
-          </View>
+        <View style={styles.historyCapsule}>
+          <Text style={styles.historyText}>{lastPlayedText}</Text>
         </View>
-      </View>
-
-      {/* Start button UI */}
-      <View style={[styles.startBtn, { backgroundColor: "#5a8bff" }]}>
-        <Icon name="play" size={18} color="#fff" />
       </View>
     </TouchableOpacity>
   );
 });
 
-// ─── Main Screen ──
+// ─── MAIN SCREEN COMPONENT ───────────────────────────────────────────────────
 
-const WorkoutTracker = () => {
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [exercises, setExercises] = useState([]);
+const WorkoutTracker = ({ navigation }) => {
+  const [selectedBodyFocus, setSelectedBodyFocus] = useState('Abs');
+  const [workoutTemplates, setWorkoutTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
 
-// fetching data from server
-useEffect(() => {
-    const fetchExerciseData = async () => {
+  useEffect(() => {
+    const fetchWorkoutRoutines = async () => {
       try {
-        const response = await axios.get("http://10.145.6.81:5000/Exercisedata");
-        setExercises(Array.isArray(response.data) ? response.data : []);
-        console.log(response.data.length)
+        const response = await axios.get(`${api_call}/WorkoutTemplates`);
+        setWorkoutTemplates(Array.isArray(response.data) ? response.data : []);
       } catch (err) {
-        console.log("Fetch Error:", err);
+        console.log("Fetch Error targeting workout templates:", err);
+        setWorkoutTemplates(MOCK_ROUTINES_FALLBACK);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchExerciseData();
+    fetchWorkoutRoutines();
   }, []);
 
-  // Show loading spinner while fetching
   if (loading) {
     return (
-      <View style={[styles.screen, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#5a8bff" />
-        <Text style={{ marginTop: 10, color: '#888' }}>Loading Workouts...</Text>
+      <View style={[styles.screen, styles.centerContainer]}>
+        <ActivityIndicator size="large" color="#5A8BFF" />
+        <Text style={styles.loadingText}>Loading Routines...</Text>
       </View>
     );
   }
 
-const filtered = selectedCategory === 'All'
-  ? exercises
-  : exercises.filter(w => 
-      w.category?.toString().toLowerCase() === selectedCategory.toLowerCase()
-    );
+  // Filter middle items based on chosen active body focus pill tab selection
+  const filteredRoutines = workoutTemplates.filter(routine => 
+    routine.category_id?.toString().toLowerCase().includes(selectedBodyFocus.toLowerCase()) ||
+    routine.title?.toString().toLowerCase().includes(selectedBodyFocus.toLowerCase())
+  );
+
+  const displayedRoutines = filteredRoutines.slice(0, 3);
+
   return (
-  <SafeAreaView style={styles.screen}>
-    <StatusBar barStyle="dark-content" backgroundColor="#F6F7FB" />
-    
-    <FlatList
-      data={filtered}
-      keyExtractor={(item) => item.id || item.name}
-      renderItem={({ item }) => (
-        <WorkoutCard 
-          workout={item} 
-          onPress={() => console.log("Exercise selected:", item.name)} 
-        />
-      )}
-      // Performance Props
-      initialNumToRender={8}
-      maxToRenderPerBatch={5}
-      windowSize={5}
-      removeClippedSubviews={true}
+    <SafeAreaView style={styles.screen}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
-    
-      ListHeaderComponent={() => (
-        <View style={styles.scroll}>
-          {/* ── Header ─────── */}
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.headerSub}>Ready to train?</Text>
-              <Text style={styles.headerTitle}>Workout Tracker </Text>
+      <FlatList
+        data={displayedRoutines} 
+        keyExtractor={(item) => item.workout_id}
+        renderItem={({ item }) => (
+          <RoutineCard 
+            navigation={navigation}
+            routine={item} 
+          />
+        )}
+        contentContainerStyle={styles.flatListContent}
+        
+        // ─── LIST HEADER COMPONENT ───
+        ListHeaderComponent={() => (
+          <View>
+            {/* 1. App Header */}
+            <View style={styles.header}>
+              <View style={styles.textColumn}>
+                <Text style={styles.greetingSubheading}>HOME WORKOUT</Text>
+              </View>
+              <View style={styles.headerRightButtons}>
+                <Icon name="fire" size={26} color="#FF5A5A" style={styles.streakFireIcon} />
+                <TouchableOpacity style={styles.proBadgeContainer} activeOpacity={0.8}>
+                  <Text style={styles.proBadgeText}>👑 PRO+</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <TouchableOpacity style={styles.searchBtn}>
-              <Icon name="magnify" size={22} color="#5a8bff" />
-            </TouchableOpacity>
+
+            {/* 2. Quick Stat Pills */}
+            <View style={styles.statsRow}>
+              <StatPill icon="fire" value="1,240" label="kcal burned" bgcolor="#FFF3E0" iconcolor="#E67E22" />
+              <StatPill icon="clock-outline" value="3h 20m" label="active time" bgcolor="#EBF1FF" iconcolor="#5A8BFF" />
+              <StatPill icon="trophy-outline" value="12" label="completed" bgcolor="#EAF7EE" iconcolor="#2ECC71" />
+            </View>
+
+            {/* 3. Challenge Banner */}
+            <ScrollView 
+              horizontal 
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.challengeCarouselPadding}
+            >
+              <View style={styles.challengeHeroCard}>
+                <Image 
+                  source={{ uri: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=500&auto=format&fit=crop&q=60' }} 
+                  style={styles.challengeImageBg} 
+                />
+                <View style={styles.challengeOverlayGradient}>
+                  <Text style={styles.challengeDurationTag}>28 DAYS</Text>
+                  <Text style={styles.challengeMainTitle}>FULL BODY{"\n"}CHALLENGE</Text>
+                  <Text style={styles.challengeSubtitle}>Start your body-toning journey to target all muscle groups!</Text>
+                  <TouchableOpacity style={styles.challengeStartButton} activeOpacity={0.9}>
+                    <Text style={styles.challengeStartButtonText}>START</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* 4. For Beginners Dynamic Carousel Section */}
+            <View style={{ marginTop: 10 }}>
+              <Text style={styles.subHeading}>For Beginners</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.portraitCardScrollGap}
+              >
+                {MOCK_BEGINNER_CARDS.map((card) => (
+                  <PortraitSquareCard 
+                    key={card.id}
+                    title={card.title}
+                    imageUri={card.imageUri}
+                    onPress={() => navigation.navigate('AbsBeginnerScreen', {
+                      workoutId: card.id,
+                      name: card.title,
+                      duration: card.duration,
+                      totalExercises: card.exercises,
+                      imageUri: card.imageUri
+                    })}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* 5. Horizontal Body Focus Chips */}
+            <Text style={styles.subHeading}>Body Focus</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryScroll}
+            >
+              {BODY_FOCUS_CATEGORIES.map((focusGroup) => (
+                <BodyFocusTab
+                  key={focusGroup}
+                  label={focusGroup}
+                  selected={selectedBodyFocus === focusGroup}
+                  onPress={() => setSelectedBodyFocus(focusGroup)}
+                />
+              ))}
+            </ScrollView>
+
+            {/* 6. Active Focus Filter Subheading Info */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.innerSectionTitle}>{selectedBodyFocus} Routines</Text>
+              <Text style={styles.sectionCount}>{displayedRoutines.length} items listed</Text>
+            </View>
           </View>
+        )}
 
-          {/* ── Quick Stats ──── */}
-          <View style={styles.statsRow}>
-            <StatPill icon="fire" value="1,240" label="kcal burned" color="#FF6B6B" />
-            <StatPill icon="clock-outline" value="3h 20m" label="active time" color="#5a8bff" />
-            <StatPill icon="trophy-outline" value="12" label="workouts" color="#F5A623" />
-          </View>
+        ListFooterComponent={() => (
+          <View style={{ paddingBottom: 40 }}>
+            <View style={styles.footerSpacing} />
+            
+            {/* 7. Special Promo Banner Placement */}
+            <PromoBannerCard 
+              countLabel="LIMITED OFFER"
+              heading="Unlock Pro Personalized Coaching Plans"
+              imageUri={MOCK_PROMO_BANNER.imageUri}
+              onPress={() => console.log('Promo Banner Clicked')}
+            />
 
-          {/* ── Weekly Progress ──── */}
-          <WeekProgress />
-
-          {/* ── Category Tabs ─────────────────────────────── */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryScroll}
-          >
-            {CATEGORIES.map((cat) => (
-              <CategoryTab
-                key={cat}
-                label={cat}
-                selected={selectedCategory === cat}
-                onPress={() => setSelectedCategory(cat)}
+            {/* 8. Vertical List Recommended Rows Section */}
+            <Text style={[styles.subHeading, { marginBottom: 10 }]}>Recommended Rows</Text>
+            {MOCK_RECOMMENDED_ROWS.map((row) => (
+              <RowWorkoutCard 
+                key={row.id}
+                title={row.title}
+                subtext={row.subtext}
+                imageUri={row.imageUri}
+                onPress={() => navigation.navigate('AbsBeginnerScreen', {
+                  workoutId: row.id,
+                  name: row.title,
+                  duration: row.subtext,
+                  totalExercises: 12,
+                  imageUri: row.imageUri
+                })}
               />
             ))}
-          </ScrollView>
-
-          {/* ── Section label ─────────────────────────────── */}
-          <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>
-              {selectedCategory === 'All' ? 'All Workouts' : selectedCategory}
-            </Text>
-            <Text style={styles.sectionCount}>{filtered.length} plans</Text>
           </View>
-        </View>
-      )}
-      
-      // Optional: Add space at the bottom
-      ListFooterComponent={<View style={{ height: 20 }} />}
-    />
-  </SafeAreaView>
-);
+        )}
+      />
+    </SafeAreaView>
+  );
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── STYLES BLOCK ────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#F6F7FB',
-  },
-  scroll: {
-    paddingBottom: 30,
-  },
-
-  // Header
+  screen: { flex: 1, backgroundColor: '#FFFFFF' },
+  centerContainer: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, color: '#9E9E9E', fontFamily: 'Montserrat-Medium' },
+  flatListContent: { paddingBottom: 20 },
+  footerSpacing: { height: 24 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 8,
+    paddingBottom: 12,
+    width: '100%',
   },
-  headerSub: {
-    fontSize: 13,
-    color: '#999',
-    fontFamily: 'Montserrat-Regular',
-    marginBottom: 2,
-  },
-  headerTitle: {
-    fontSize: 22,
+  textColumn: { flexDirection: 'column' },
+  greetingSubheading: {
     fontFamily: 'Montserrat-Bold',
-    color: '#1A1A2E',
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111111',
+    letterSpacing: -0.5,
   },
-  searchBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#5a8bff',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
+  portraitCardScrollGap: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    gap: 12,              
   },
-
-  // Stats
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 22,
-    marginTop: 14,
-    gap: 10,
+  headerRightButtons: { flexDirection: 'row', alignItems: 'center' },
+  streakFireIcon: { marginRight: 12 },
+  proBadgeContainer: {
+    backgroundColor: '#FFEAD2',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
-  statPill: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    paddingHorizontal: 10,
+  proBadgeText: { color: '#E67E22', fontWeight: '700', fontSize: 12 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 10, gap: 8 },
+  statPill: { flex: 1, flexDirection: 'column', alignItems: 'flex-start', borderRadius: 16, padding: 12 },
+  pillIconCircle: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  statPillText: { width: '100%' },
+  statValue: { fontSize: 15, fontFamily: 'Montserrat-Bold', fontWeight: '700', color: '#2D3142' },
+  statLabel: { fontSize: 10, color: '#8A8F99', fontFamily: 'Montserrat-Medium', marginTop: 1 },
+  
+  challengeCarouselPadding: { paddingHorizontal: 20, marginTop: 20 },
+  challengeHeroCard: {
+    width: width - 40,
+    height: 185,
+    borderRadius: 24,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#0F56FF'
+  },
+  challengeImageBg: { width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.4, position: 'absolute' },
+  challengeOverlayGradient: { flex: 1, padding: 18, justifyContent: 'center' },
+  challengeDurationTag: { color: 'rgba(255,255,255,0.8)', fontWeight: '700', fontSize: 12 },
+  challengeMainTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '800', fontFamily: 'Montserrat-Bold', marginTop: 2, lineHeight: 26 },
+  challengeSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 11, marginTop: 4, maxWidth: '75%' },
+  challengeStartButton: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
     paddingVertical: 10,
-    gap: 8,
-  },
-  statPillText: {
-    flexShrink: 1,
-  },
-  statValue: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-Bold',
-  },
-  statLabel: {
-    fontSize: 9,
-    color: '#888',
-    fontFamily: 'Montserrat-Regular',
-  },
-
-  // Weekly progress
-  weekCard: {
-    marginHorizontal: 22,
-    marginTop: 18,
-    backgroundColor: '#fff',
     borderRadius: 20,
-    padding: 18,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    elevation: 2
   },
-  weekHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  weekTitle: {
-    fontSize: 15,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#1A1A2E',
-  },
-  weekSub: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-Medium',
-    color: '#5a8bff',
-  },
-  weekDays: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  dayCol: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  dayDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dayDotActive: {
-    backgroundColor: '#5a8bff',
-  },
-  dayDotInactive: {
-    backgroundColor: '#F0F2F8',
-  },
-  dayLabel: {
-    fontSize: 11,
-    color: '#bbb',
-    fontFamily: 'Montserrat-Medium',
-  },
-  dayLabelActive: {
-    color: '#5a8bff',
-  },
-  progressBg: {
-    height: 6,
-    backgroundColor: '#F0F2F8',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: 6,
-    backgroundColor: '#5a8bff',
-    borderRadius: 3,
-  },
+  challengeStartButtonText: { color: '#0F56FF', fontWeight: '800', fontSize: 13 },
 
-  // Categories
-  categoryScroll: {
-    paddingHorizontal: 22,
-    paddingTop: 22,
-    paddingBottom: 4,
-    gap: 10,
-  },
-  categoryTab: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: '#EAEEF5',
-  },
-  categoryTabActive: {
-    backgroundColor: '#5a8bff',
-    borderColor: '#5a8bff',
-  },
-  categoryTabText: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#888',
-  },
-  categoryTabTextActive: {
-    color: '#fff',
-  },
-
-  // Section row
-  sectionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 22,
-    marginTop: 20,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 17,
+  subHeading: {
+    fontSize: 18,
     fontFamily: 'Montserrat-Bold',
-    color: '#1A1A2E',
+    fontWeight: '700',
+    color: '#111111',
+    marginLeft: 20,
+    marginTop: 26
   },
-  sectionCount: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-Regular',
-    color: '#aaa',
-  },
+  categoryScroll: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10, gap: 8 },
+  categoryTab: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F4F5F7', borderWidth: 1, borderColor: 'transparent' },
+  categoryTabActive: { backgroundColor: '#EBF1FF', borderColor: '#5A8BFF' },
+  categoryTabText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#8A8F99', fontWeight: '600' },
+  categoryTabTextActive: { color: '#5A8BFF', fontWeight: '700' },
 
-  // Workout card
-  workoutCard: {
-    marginHorizontal: 22,
-    marginBottom: 14,
-    borderRadius: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    overflow: 'hidden',
-    paddingRight: 14,
-  },
-  accentBar: {
-    width: 5,
-    alignSelf: 'stretch',
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
-  },
-  cardBody: {
-    flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-  },
-  cardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 12,
-  },
-  emojiCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emojiText: {
-    fontSize: 22,
-  },
-  cardTitleGroup: {
-    flex: 1,
-  },
-  cardName: {
-    fontSize: 15,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#1A1A2E',
-    marginBottom: 4,
-  },
-  difficultyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  difficultyDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  difficultyText: {
-    fontSize: 11,
-    fontFamily: 'Montserrat-Medium',
-  },
-  cardStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  cardStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  cardStatText: {
-    fontSize: 11,
-    fontFamily: 'Montserrat-Regular',
-    color: '#666',
-  },
-  cardStatDivider: {
-    width: 1,
-    height: 12,
-    backgroundColor: '#DDD',
-  },
-
-  // Start button
-  startBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-  },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 20, marginTop: 14, marginBottom: 12 },
+  innerSectionTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', fontWeight: '700', color: '#111111' },
+  sectionCount: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#9E9E9E' },
+  
+  routineCardContainer: { flexDirection: 'row', backgroundColor: '#FFFFFF', marginHorizontal: 20, marginBottom: 16, alignItems: 'center' },
+  routineThumbnail: { width: 78, height: 78, borderRadius: 18, backgroundColor: '#F4F5F7' },
+  routineDetailsGroup: { flex: 1, marginLeft: 16, justifyContent: 'center' },
+  routineMainTitle: { fontSize: 16, fontWeight: '700', color: '#111111', fontFamily: 'Montserrat-Bold' },
+  routineSubtext: { fontSize: 13, color: '#8A8F99', marginTop: 2, fontFamily: 'Montserrat-Medium' },
+  intensityContainer: { flexDirection: 'row', marginTop: 4 },
+  boltIcon: { marginRight: 2 },
+  historyCapsule: { backgroundColor: '#F4F5F7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start', marginTop: 6 },
+  historyText: { fontSize: 11, color: '#A0A5B0', fontWeight: '600' }
 });
+
+// ─── EXPLICIT OBJECT OBJECT MODULE SAMPLE DATASETS ───────────────────────────
+
+const MOCK_BEGINNER_CARDS = [
+  { id: "BG_ABS_01", title: "Core Basics", duration: "10 mins", exercises: 8, imageUri: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=200" },
+  { id: "BG_ARM_01", title: "Light Arms", duration: "12 mins", exercises: 10, imageUri: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=200" },
+  { id: "BG_LEG_01", title: "Easy Squats", duration: "15 mins", exercises: 9, imageUri: "https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=200" },
+];
+
+const MOCK_PROMO_BANNER = {
+  imageUri: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600"
+};
+
+const MOCK_RECOMMENDED_ROWS = [
+  { id: "REC_HIIT_01", title: "Quick HIIT Starter", subtext: "10 mins • Beginner", imageUri: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=150" },
+  { id: "REC_CORE_02", title: "Core Sculpt Express", subtext: "12 mins • Intermediate", imageUri: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=150" },
+];
+
+const MOCK_ROUTINES_FALLBACK = [
+  { workout_id: "WK_ABS_01", category_id: "Abs", title: "Abs Shredder", total_duration_minutes: 15, difficulty_rating: 1, last_played_date: "Apr 15", thumbnail_image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=150", exercises_sequence: Array(16).fill(0) },
+  { workout_id: "WK_ARM_01", category_id: "Arm", title: "Bicep Blaster Extreme", total_duration_minutes: 20, difficulty_rating: 2, last_played_date: "May 2", thumbnail_image: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=150", exercises_sequence: Array(12).fill(0) },
+  { workout_id: "WK_ABS_02", category_id: "Abs", title: "Six Pack Circuit", total_duration_minutes: 18, difficulty_rating: 3, last_played_date: "Yesterday", thumbnail_image: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=150", exercises_sequence: Array(20).fill(0) }
+];
 
 export default WorkoutTracker;
