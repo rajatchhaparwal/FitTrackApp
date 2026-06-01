@@ -20,6 +20,7 @@ const ProfilePage = () => {
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* ─── MYFITNESSPAL USER BANNER TOP SECTION ─── */}
+      
       <View style={styles.userBanner}>
         <Image
           source={{ uri:"" }}
@@ -35,6 +36,7 @@ const ProfilePage = () => {
       </View>
 
       {/* ─── FLAT STATS METRICS SUMMARY HEADER ─── */}
+
       <View style={styles.statsSummaryGrid}>
         <View style={styles.summaryColumn}>
           <Text style={styles.summaryValue}>72.0</Text>
@@ -71,7 +73,7 @@ const ProfilePage = () => {
             <Icon name="fire" size={22} color="#555555" style={styles.rowIconSpacer} />
             <Text style={styles.rowItemLabel}>Calorie Burn Logs</Text>
           </View>
-          <Icon name="chevron-right" size={20} color="#BBBBBB" />
+          <Icon name="chevron-right" size={20} color="#BBBBBB"/>
         </TouchableOpacity>
 
         <View style={styles.rowItemSeparator} />

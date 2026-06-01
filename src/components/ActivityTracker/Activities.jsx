@@ -1,7 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import ActivityCard from './ActitvityCard'
-const Activities = ({userData}) => {
+import DrinkWaterScreen from '../../Screens/Actitvities/DrinkWaterScreen';
+
+const Activities = ({userData , navigation}) => {
+
+  const [GOAL_ML , setGOAL_ML] = useState('');
+  const [consumed ,setConsumed] = useState('');
+
+  const handleChildData = (watergGoal,consume) => {
+    setGOAL_ML(watergGoal);
+    setConsumed(consume);
+  };
+
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -11,7 +23,7 @@ const Activities = ({userData}) => {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
         
-      <ActivityCard
+<ActivityCard
   type="Calories"
   trackValue={0}
   value="1914"
@@ -32,11 +44,13 @@ const Activities = ({userData}) => {
   
 <ActivityCard
   type="Drink Water"
-  trackValue={3}
-  value="12"
-  unit="glasses"
+  trackValue={consumed}
+  value={GOAL_ML}
+  unit="ml"
   progress={60}
   progressColor="#4FC3F7"
+  OnPress = 'DrinkWaterScreen'
+  navigation={navigation}
   icon="💧"
   variant="bar"
 />

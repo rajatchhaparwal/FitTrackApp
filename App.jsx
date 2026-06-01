@@ -23,6 +23,8 @@ import CaptureMeal from './src/Screens/DietTracker/CaptureMeal';
 import TrackFood from './src/components/DietTracker/TrackFood';
 import ProfilePage from './src/Screens/UserProfile/ProfilePage'
 import AbsBeginnerScreen from './src/Screens/WorkoutTracker/AbsBeginnerScreen';
+import DrinkWaterScreen from './src/Screens/Actitvities/DrinkWaterScreen';
+import Activities from './src/components/ActivityTracker/Activities';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -153,6 +155,8 @@ export function MyStack() {
           <Stack.Screen name="TrackFood" component={TrackFood} />
           <Stack.Screen name="AbsBeginnerScreen" component={AbsBeginnerScreen}/>
           <Stack.Screen name="WorkoutTracker" component={WorkoutTracker}/>
+          <Stack.Screen name = "DrinkWaterScreen" component={DrinkWaterScreen}/>
+          <Stack.Screen name = "Activities" component={Activities}/>
         </>
       )}
     </Stack.Navigator>

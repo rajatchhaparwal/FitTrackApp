@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-
+import { View, Text, StyleSheet,TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 const ActivityCard = ({
   type,
   value,
@@ -8,7 +8,7 @@ const ActivityCard = ({
   icon,
   bgcolor,
   iconcolor,
-
+  OnPress,
   // Progress
   progress = 0,
   progressColor = '#4F8EF7',
@@ -17,14 +17,18 @@ const ActivityCard = ({
   variant = 'bar', // bar | pulse
 }) => {
 
+  const navigation = useNavigation();
+  
   const cardBg = bgcolor || '#FFFFFF';
   const themeColor = iconcolor || '#F5F5F5';
 
   return (
-    <View style={[styles.card, { backgroundColor: cardBg }]}>
 
+    <View style={[styles.card, { backgroundColor: cardBg }]}>
+      <TouchableOpacity 
+      onPress={() => navigation.navigate(OnPress)}>
       {/* Header */}
-      <View style={styles.headerRow}>
+          <View style={styles.headerRow}>
         <Text style={styles.typeText} numberOfLines={2}>
           {type}
         </Text>
@@ -43,7 +47,6 @@ const ActivityCard = ({
 
       {/* Bottom */}
       <View style={styles.bottomSection}>
-
         {/* Value */}
         <View style={styles.valueRow}>
           <Text style={styles.valueText}>
@@ -55,6 +58,7 @@ const ActivityCard = ({
               {unit}
             </Text>
           )}
+          
         </View>
 
         {/* Dynamic UI */}
@@ -113,6 +117,7 @@ const ActivityCard = ({
         )}
 
       </View>
+      </TouchableOpacity>
     </View>
   );
 };

@@ -1,13 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useUser } from '../../../UserContext';
 
-const TodaysGoalCard = ({ foodGoal, workoutGoal, workoutDone }) => {
+const TodaysGoalCard = ({ workoutGoal, workoutDone }) => {
+
+  const {userData} = useUser();
   // Hardcoded macro values with clear, readable data structure
   const macros = {
-    protein: { value: '92g', label: 'Protein', percent: 45, color: '#2C5E5A' },
-    carb: { value: '120g', label: 'Carbs', percent: 40, color: '#3A6B88' },
-    fat: { value: '45g', label: 'Fat', percent: 25, color: '#A97C50' },
-    fibre: { value: '28g', label: 'Fibre', percent: 20, color: '#7B628C' },
+    protein: { value: '92', required : userData?.personalPlan?.proteinGrams, label: 'Protein', percent: 45, color: '#2C5E5A' },
+    carb: { value: '120',required : userData?.personalPlan?.carbGrams, label: 'Carbs', percent: 40, color: '#3A6B88' },
+    fat: { value: '45', required : userData?.personalPlan?.fatGrams , label: 'Fat', percent: 25, color: '#A97C50' },
+    // fibre: { value: '28',required : userData?.personalPlan?.proteinGrams,  label: 'Fibre', percent: 20, color: '#7B628C' },
   };
 
   const workoutPercent = Math.min((workoutDone / workoutGoal) * 100, 100);
@@ -23,7 +26,7 @@ const TodaysGoalCard = ({ foodGoal, workoutGoal, workoutDone }) => {
           </View>
           <View style={styles.titleGroup}>
             <Text style={styles.mainTitle}>Track Food</Text>
-            <Text style={styles.subTitle}>Target: {foodGoal} kcal</Text>
+            <Text style={styles.subTitle}>Target: {userData?.personalPlan?.dailyCalories} kcal</Text>
           </View>
         </View>
         <TouchableOpacity style={styles.orangeAddBtn} activeOpacity={0.7}>
@@ -35,7 +38,10 @@ const TodaysGoalCard = ({ foodGoal, workoutGoal, workoutDone }) => {
       <View style={styles.macroGridContainer}>
         {Object.values(macros).map((macro, idx) => (
           <View key={idx} style={styles.macroMiniCard}>
-            <Text style={styles.macroValueText}>{macro.value}</Text>
+            <View style={{flexDirection:'row'}}>
+            <Text style={styles.macroValueText}>{macro.value}/</Text>
+            <Text style={styles.macroValueText}>{macro.required}g</Text>
+            </View>
             <Text style={styles.macroLabelText}>{macro.label}</Text>
             {/* Minimalist Micro Progress Line */}
             <View style={styles.microBarBg}>
@@ -154,7 +160,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   macroValueText: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '700',
     color: '#1A1C1E',
   },
