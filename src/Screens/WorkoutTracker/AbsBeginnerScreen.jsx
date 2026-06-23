@@ -11,6 +11,7 @@ import {
   ImageBackground
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const { height } = Dimensions.get('window');
 const HERO_HEIGHT = height * 0.40;
@@ -38,9 +39,9 @@ const EXERCISES_DATABASE = [
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-const NavButton = ({ label, onPress }) => (
+const NavButton = ({ icon, onPress }) => (
   <TouchableOpacity style={styles.navBtn} onPress={onPress} activeOpacity={0.75}>
-    <Text style={styles.navBtnText}>{label}</Text>
+    <Icon name={icon} size={22} color="#FFFFFF" />
   </TouchableOpacity>
 );
 
@@ -59,15 +60,8 @@ const DragHandle = () => (
   </View>
 );
 
-const SwapIcon = () => (
-  <View style={styles.swapWrap}>
-    <Text style={styles.swapArrow}>↑</Text>
-    <Text style={styles.swapArrow}>↓</Text>
-  </View>
-);
-
-const ExerciseRow = ({ exercise }) => (
-  <View style={styles.exerciseRow}>
+const ExerciseRow = ({ exercise, onPress }) => (
+  <TouchableOpacity style={styles.exerciseRow} onPress={onPress} activeOpacity={0.75}>
     <DragHandle />
     <View style={[styles.exerciseThumb, { backgroundColor: exercise.bgColor }]}>
       <Text style={styles.exerciseEmoji}>{exercise.emoji}</Text>
@@ -76,10 +70,10 @@ const ExerciseRow = ({ exercise }) => (
       <Text style={styles.exerciseName}>{exercise.name}</Text>
       <Text style={styles.exerciseMetric}>{exercise.metric}</Text>
     </View>
-    <TouchableOpacity style={styles.swapBtn} activeOpacity={0.6}>
-      <SwapIcon />
-    </TouchableOpacity>
-  </View>
+    <View style={styles.swapBtn}>
+      <Icon name="chevron-right" size={24} color="#AAAAAA" />
+    </View>
+  </TouchableOpacity>
 );
 
 // ─── Main Screen Component ────────────────────────────────────────────────────
@@ -88,10 +82,20 @@ const AbsBeginnerScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
 
   // Extract properties safely incoming from route parameters
-  const { name, duration, totalExercises, imageUri , categoryId} = route.params || {};
+  const { name, duration, totalExercises, imageUri, categoryId, workoutId } = route.params || {};
 
-  // FIXED: Filter from base array using clean logic safely matching criteria tag
-  const displayWorkoutData = EXERCISES_DATABASE.filter(ex => ex.category ===  categoryId);
+  const openExerciseDetail = (exerciseItem, index) => {
+    navigation.navigate('SpecificWorkoutPage', {
+      exercise: exerciseItem,
+      workoutTitle: name,
+      workoutId,
+      workoutExercises: displayWorkoutData,
+      exerciseIndex: index,
+    });
+  };
+
+  // Filter from base array using clean logic safely matching criteria tag
+  const displayWorkoutData = EXERCISES_DATABASE.filter(ex => ex.category === categoryId);
 
   return (
     <View style={styles.container}>
@@ -110,8 +114,8 @@ const AbsBeginnerScreen = ({ navigation, route }) => {
         )}
 
         <View style={[styles.navRow, { top: insets.top + 10 }]}>
-          <NavButton label="←" onPress={() => navigation.goBack()} />
-          <NavButton label="⋮" onPress={() => {}} />
+          <NavButton icon="arrow-left" onPress={() => navigation.goBack()} />
+          <NavButton icon="dots-vertical" onPress={() => {}} />
         </View>
       </View>
 
@@ -140,21 +144,24 @@ const AbsBeginnerScreen = ({ navigation, route }) => {
               <View style={styles.coachAvatar}>
                 <Text style={styles.coachAvatarEmoji}>🧍‍♂️</Text>
               </View>
-              <Text style={styles.chevron}>›</Text>
+              <Icon name="chevron-right" size={22} color="#AAAAAA" />
             </View>
           </TouchableOpacity>
 
           <View style={styles.exercisesHeader}>
             <Text style={styles.exercisesLabel}>Exercises</Text>
-            <TouchableOpacity activeOpacity={0.7}>
-              <Text style={styles.editText}>Edit  ›</Text>
+            <TouchableOpacity activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.editText}>Edit </Text>
+              <Icon name="chevron-right" size={16} color="#2563EB" />
             </TouchableOpacity>
           </View>
 
-
           {displayWorkoutData.map((exerciseItem, index) => (
             <React.Fragment key={exerciseItem.id}>
-              <ExerciseRow exercise={exerciseItem} />
+              <ExerciseRow
+                exercise={exerciseItem}
+                onPress={() => openExerciseDetail(exerciseItem, index)}
+              />
               {index < displayWorkoutData.length - 1 && (
                 <View style={styles.separator} />
               )}
@@ -165,7 +172,13 @@ const AbsBeginnerScreen = ({ navigation, route }) => {
 
       {/* ══════════════════ START BUTTON (fixed bottom) ══════════════════ */}
       <View style={[styles.startWrapper, { paddingBottom: insets.bottom + 14 }]}>
-        <TouchableOpacity style={styles.startBtn} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={styles.startBtn}
+          activeOpacity={0.85}
+          onPress={() => {
+            if (displayWorkoutData[0]) openExerciseDetail(displayWorkoutData[0], 0);
+          }}
+        >
           <Text style={styles.startText}>Start</Text>
         </TouchableOpacity>
       </View>
@@ -173,7 +186,6 @@ const AbsBeginnerScreen = ({ navigation, route }) => {
   );
 };
 
-// ... keep your layout stylesheet exact same down below
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
   hero: { width: '100%', backgroundColor: '#111111', overflow: 'hidden' },
@@ -181,7 +193,6 @@ const styles = StyleSheet.create({
   heroPlaceholderEmoji: { fontSize: 72, marginBottom: 8 },
   navRow: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   navBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0, 0, 0, 0.38)', alignItems: 'center', justifyContent: 'center' },
-  navBtnText: { color: '#FFFFFF', fontSize: 18, fontWeight: '600', lineHeight: 20 },
   sheetOuter: { flex: 1, backgroundColor: '#FFFFFF', borderTopLeftRadius: 26, borderTopRightRadius: 26, marginTop: -SHEET_OVERLAP, ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.06, shadowRadius: 6 }, android: { elevation: 6 } }) },
   sheetContent: { paddingHorizontal: 22, paddingTop: 26 },
   title: { fontSize: 28, fontWeight: '800', color: '#111111', letterSpacing: -0.6, marginBottom: 20 },
@@ -194,7 +205,6 @@ const styles = StyleSheet.create({
   coachRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   coachAvatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#EEEEEE', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   coachAvatarEmoji: { fontSize: 22, lineHeight: 28 },
-  chevron: { fontSize: 22, color: '#AAAAAA', fontWeight: '300', lineHeight: 24 },
   exercisesHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 18, paddingBottom: 6 },
   exercisesLabel: { fontSize: 16, fontWeight: '700', color: '#111111' },
   editText: { fontSize: 15, color: '#2563EB', fontWeight: '500' },
@@ -207,8 +217,6 @@ const styles = StyleSheet.create({
   exerciseName: { fontSize: 15, fontWeight: '700', color: '#111111', marginBottom: 4 },
   exerciseMetric: { fontSize: 14, color: '#888888', fontWeight: '400' },
   swapBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
-  swapWrap: { alignItems: 'center', justifyContent: 'center' },
-  swapArrow: { fontSize: 11, color: '#BBBBBB', lineHeight: 13, fontWeight: '600' },
   separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#EBEBEB', marginLeft: 46 },
   startWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 14, backgroundColor: '#FFFFFF', ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -5 }, shadowOpacity: 0.07, shadowRadius: 10 }, android: { elevation: 10 } }) },
   startBtn: { backgroundColor: '#2563EB', borderRadius: 32, paddingVertical: 18, alignItems: 'center', justifyContent: 'center', ...Platform.select({ ios: { shadowColor: '#2563EB', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 14 }, android: { elevation: 8 } }) },

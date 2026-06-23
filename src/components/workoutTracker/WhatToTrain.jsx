@@ -1,15 +1,23 @@
 import { StyleSheet, Text, View, Image, Dimensions, TouchableOpacity } from 'react-native'
 import React from 'react'
+import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const { width } = Dimensions.get('window');
 
 const WhatToTrain = ({ data }) => {
+const navigation = useNavigation()
+
+  function handleOnpress () {
+    navigation.navigate('Workout')
+  }
+
   const title = data?.WorkoutType || "Full Body Workout";
   const exercises = data?.NumberOFExercises || "13";
   const duration = data?.WorkoutTime || "36";
 
   return (
-    <TouchableOpacity activeOpacity={0.95} style={styles.cardContainer}>
+    <TouchableOpacity onPress={handleOnpress} activeOpacity={0.95} style={styles.cardContainer}>
       
       {/* Left Column: Information */}
       <View style={styles.textContainer}>
@@ -19,10 +27,16 @@ const WhatToTrain = ({ data }) => {
         
         <View style={styles.badgeRow}>
           <View style={styles.miniBadge}>
-            <Text style={styles.badgeText}>🏋️ {exercises} Exercises</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="weight-lifter" size={14} color="#5566A5" />
+              <Text style={styles.badgeText}>{exercises} Exercises</Text>
+            </View>
           </View>
           <View style={[styles.miniBadge, { backgroundColor: 'rgba(255, 255, 255, 0.4)' }]}>
-            <Text style={styles.badgeText}>⏱️ {duration} mins</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="clock-outline" size={14} color="#5566A5" />
+              <Text style={styles.badgeText}>{duration} mins</Text>
+            </View>
           </View>
         </View>
         

@@ -13,7 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   verifyPhoneOtp,
   resendPhoneOtp,
@@ -80,7 +80,7 @@ const Otp = ({ navigation, route }) => {
         >
           <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
             <Text style={styles.backButtonText}>
-              {<Icon name="arrow-back" style={{ paddingTop: 10 }} size={24} color="#000" />}{' '}
+              {<Icon name="arrow-left" style={{ paddingTop: 10 }} size={24} color="#000" />}{' '}
               Change Number
             </Text>
           </TouchableOpacity>

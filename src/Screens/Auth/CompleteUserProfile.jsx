@@ -50,6 +50,33 @@ const ACTIVITY_LEVELS = [
 
 const HABITS = ['Morning workout', 'Gym', 'Running', 'Yoga', 'Cycling', 'Swimming'];
 
+const FITNESS_LEVELS = [
+  { id: 'Beginner', label: 'Beginner', hint: 'New to training or returning after a break' },
+  { id: 'Intermediate', label: 'Intermediate', hint: 'Train regularly, comfortable with basics' },
+  { id: 'Advanced', label: 'Advanced', hint: 'Experienced, high training volume' },
+];
+
+const EQUIPMENT_OPTIONS = [
+  'No Equipment',
+  'Dumbbells',
+  'Barbell',
+  'Resistance Band',
+  'Pull-up Bar',
+  'Bench',
+  'Kettlebell',
+  'Treadmill',
+  'Jump Rope',
+];
+
+const CATEGORY_OPTIONS = [
+  'Strength',
+  'Cardio',
+  'Flexibility',
+  'Core',
+  'HIIT',
+  'Balance',
+];
+
 const HEIGHT_UNITS = [
   { id: 'cm', label: 'cm' },
   { id: 'ft-in', label: 'ft / in' },
@@ -98,9 +125,13 @@ export default function CompleteUserProfile({ onOnboardingComplete }) {
     heightFt: '',
     heightIn: '',
     gender: '',
+    fitnessLevel: '',
     goal: '',
     baselineActivityLevel: '',
     selectedHabits: [],
+    preferredEquipment: [],
+    preferredCategories: [],
+    dailyWaterGoalMl: '2000',
     injuryNotes: '',
     country: '',
   });
@@ -114,14 +145,13 @@ export default function CompleteUserProfile({ onOnboardingComplete }) {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
-  const toggleHabit = (habit) => {
+  const toggleMultiSelect = (key, value) => {
     setFormData((prev) => {
-      const exists = prev.selectedHabits.includes(habit);
+      const list = prev[key];
+      const exists = list.includes(value);
       return {
         ...prev,
-        selectedHabits: exists
-          ? prev.selectedHabits.filter((h) => h !== habit)
-          : [...prev.selectedHabits, habit],
+        [key]: exists ? list.filter((item) => item !== value) : [...list, value],
       };
     });
   };
@@ -179,6 +209,10 @@ export default function CompleteUserProfile({ onOnboardingComplete }) {
           Alert.alert('Gender required', 'Please select an option.');
           return false;
         }
+        if (!formData.fitnessLevel) {
+          Alert.alert('Fitness level required', 'Please select your current fitness level.');
+          return false;
+        }
         return true;
       }
       case 'goal':
@@ -227,9 +261,17 @@ export default function CompleteUserProfile({ onOnboardingComplete }) {
         weight: Number(formData.weight),
         height: getHeightInCm(formData),
         gender: formData.gender,
+        fitnessLevel: formData.fitnessLevel,
+        fitness_level: formData.fitnessLevel,
         goal: formData.goal,
         baselineActivityLevel: formData.baselineActivityLevel,
         selectedHabits: formData.selectedHabits,
+        daily_water_goal_ml: Number(formData.dailyWaterGoalMl) || 2000,
+        preferences: {
+          preferred_equipment: formData.preferredEquipment,
+          preferred_categories: formData.preferredCategories,
+          units: formData.heightUnit === 'cm' ? 'metric' : 'imperial',
+        },
         injuryNotes: formData.injuryNotes.trim(),
         country: formData.country.trim(),
         onboardingCompleted: true,
@@ -384,6 +426,30 @@ export default function CompleteUserProfile({ onOnboardingComplete }) {
             <Field label="Gender">
               {renderChips(GENDERS, formData.gender, (g) => updateField('gender', g))}
             </Field>
+
+            <Field label="Fitness level">
+              {FITNESS_LEVELS.map((level) => {
+                const sel = formData.fitnessLevel === level.id;
+                return (
+                  <TouchableOpacity
+                    key={level.id}
+                    style={[styles.optionRow, sel && styles.optionRowSel]}
+                    onPress={() => updateField('fitnessLevel', level.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.radio, sel && styles.radioSel]}>
+                      {sel ? <View style={styles.radioDot} /> : null}
+                    </View>
+                    <View style={styles.optionText}>
+                      <Text style={[styles.optionTitle, sel && styles.optionTitleSel]}>
+                        {level.label}
+                      </Text>
+                      <Text style={styles.optionHint}>{level.hint}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </Field>
           </OnboardingFormShell>
         );
 
@@ -419,7 +485,23 @@ export default function CompleteUserProfile({ onOnboardingComplete }) {
               );
             })}
             <Text style={[styles.fieldLabel, styles.habitsHead]}>Habits you enjoy (optional)</Text>
-            {renderChips(HABITS, formData.selectedHabits, toggleHabit, true)}
+            {renderChips(HABITS, formData.selectedHabits, (h) => toggleMultiSelect('selectedHabits', h), true)}
+
+            <Text style={[styles.fieldLabel, styles.habitsHead]}>Equipment you have access to</Text>
+            {renderChips(
+              EQUIPMENT_OPTIONS,
+              formData.preferredEquipment,
+              (item) => toggleMultiSelect('preferredEquipment', item),
+              true,
+            )}
+
+            <Text style={[styles.fieldLabel, styles.habitsHead]}>Workout types you prefer</Text>
+            {renderChips(
+              CATEGORY_OPTIONS,
+              formData.preferredCategories,
+              (item) => toggleMultiSelect('preferredCategories', item),
+              true,
+            )}
           </OnboardingFormShell>
         );
 
@@ -445,6 +527,16 @@ export default function CompleteUserProfile({ onOnboardingComplete }) {
                 value={formData.country}
                 onChangeText={(t) => updateField('country', t)}
                 autoCapitalize="words"
+              />
+            </Field>
+            <Field label="Daily water goal (ml, optional)" icon="cup-water">
+              <TextInput
+                {...inputProps}
+                placeholder="2000"
+                value={formData.dailyWaterGoalMl}
+                onChangeText={(t) => updateField('dailyWaterGoalMl', t.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                maxLength={5}
               />
             </Field>
           </OnboardingFormShell>

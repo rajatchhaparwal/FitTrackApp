@@ -13,7 +13,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { sendPhoneOtp, getFirebaseAuthErrorMessage } from '../../services/phoneAuth';
+import { sendPhoneOtp, getFirebaseAuthErrorMessage, activateBypass } from '../../services/phoneAuth';
 import { formatPhoneE164, formatPhoneDisplay } from '../../utils/phoneNumber';
 
 const Login = ({ navigation }) => {
@@ -82,6 +82,14 @@ const Login = ({ navigation }) => {
               ) : (
                 <Text style={styles.buttonText}>Continue</Text>
               )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => activateBypass()}
+              style={styles.bypassBtn}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.bypassText}>Bypass for Testing (Developer Mode)</Text>
             </TouchableOpacity>
           </View>
 
@@ -186,6 +194,21 @@ const styles = StyleSheet.create({
   },
   link: {
     color: '#5A8BFF',
+    fontWeight: '600',
+  },
+  bypassBtn: {
+    marginTop: 15,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E8EEFF',
+    borderRadius: 16,
+    backgroundColor: '#F4F7FF',
+  },
+  bypassText: {
+    color: '#5A8BFF',
+    fontSize: 14,
     fontWeight: '600',
   },
 });

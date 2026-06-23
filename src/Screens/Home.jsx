@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View, Dimensions, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import auth from '@react-native-firebase/auth';
 import WhatToTrain from '../components/workoutTracker/WhatToTrain';
 import SearchBar from '../components/SearchNotification&otherIconsLogic/SearchBar';
 import Activities from '../components/ActivityTracker/Activities';
-import HomeScreenCalender from '../constants/HomeScreenCalendar';
 import TodaysGoalCard from '../components/ActivityTracker/TodaysGoalCard';
 import { useUser } from '../../UserContext';
+import api_call from '../../api';
+import { setupDefaultReminders } from '../services/notificationService';
 
 const { width } = Dimensions.get('window');
 
@@ -51,48 +54,100 @@ const getEmotionalGreeting = () => {
 };
 
 const Home = () => {
+  const navigation = useNavigation();
   const { userData, loading } = useUser();
+  const [dietLog, setDietLog] = useState(null);
+  const [fetchingLog, setFetchingLog] = useState(true);
+
+  useEffect(() => {
+    setupDefaultReminders().catch(e => console.log('Reminders setup error:', e));
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      const fetchLog = async () => {
+        try {
+          const user = auth().currentUser;
+          if (!user) return;
+          const res = await fetch(`${api_call}/DietLog/today`, {
+            headers: { 'firebase-uid': user.uid }
+          });
+          const data = await res.json();
+          if (isActive && data.success && data.data) {
+            setDietLog(data.data);
+          }
+        } catch (e) {
+          console.error("Error fetching diet log on home:", e);
+        } finally {
+          if (isActive) setFetchingLog(false);
+        }
+      };
+      fetchLog();
+      return () => { isActive = false; };
+    }, [])
+  );
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4CAF50" />
+        <ActivityIndicator size="large" color="#0066EE" />
       </View>
     );
   }
+
+  const dailyTotals = dietLog?.dailyTotals || {};
+  const caloriesConsumed = Math.round(dailyTotals.calories || 0);
+  const proteinConsumed  = Math.round(dailyTotals.proteinG || 0);
+  const carbConsumed     = Math.round(dailyTotals.carbsG || 0);
+  const fatConsumed      = Math.round(dailyTotals.fatG || 0);
+  const waterConsumed    = Math.round(dietLog?.waterIntakeMl || 0);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         
-        {/* ================= REPROPORTIONED GREETING HEADER ================= */}
+        {/* ================= GREETING HEADER ================= */}
         <View style={styles.headerContainer}>
           <View style={styles.textColumn}>
-            <Text style={styles.greeting}>Hello, {userData?.name || "Rajat"}</Text>
+            <Text style={styles.greeting}>Hello, {userData?.name || 'User'}</Text>
             <Text style={styles.greetingSubheading} numberOfLines={2}>
               {getEmotionalGreeting()}
             </Text>
           </View>
 
-          <TouchableOpacity style={styles.bellButton} activeOpacity={0.8}>
-            <Icon name="bell" size={20} color="#5a8bff" />
+          <TouchableOpacity 
+            style={styles.bellButton} 
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <Icon name="bell-outline" size={22} color="#0066EE" />
             <View style={styles.notificationBadge} />
           </TouchableOpacity>
         </View>
-        {/* ========================================================================= */}
 
-        <SearchBar />
-        
-        {/* <HomeScreenCalender/> */}
+        <SearchBar placeholder="Search food, exercises..." searchType="all" />
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Trending Workouts</Text>
         </View>
         <WhatToTrain data={{ WorkoutType: "Full Body Workout", WorkoutTime: "36", NumberOFExercises: "13" }} />
         
-        <Activities userData={userData} />
+        <Activities 
+          navigation={navigation}
+          caloriesConsumed={caloriesConsumed}
+          waterConsumed={waterConsumed}
+        />
         
-        <TodaysGoalCard workoutDone={25} workoutGoal={45} foodDone={1420} foodGoal={2100} />
+        <TodaysGoalCard 
+          workoutDone={0} 
+          workoutGoal={45} 
+          caloriesConsumed={caloriesConsumed}
+          proteinConsumed={proteinConsumed}
+          carbConsumed={carbConsumed}
+          fatConsumed={fatConsumed}
+          onAddFoodPress={() => navigation.navigate('FoodSearch', { mealType: 'Breakfast' })}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -101,17 +156,18 @@ const Home = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1, 
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#F8FAFC',
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F8FAFC',
   },
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start', // Keeps the notification bell anchored perfectly at the top right
+    alignItems: 'flex-start',
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 16,
@@ -125,16 +181,16 @@ const styles = StyleSheet.create({
   greeting: {
     fontFamily: 'Montserrat-Medium', 
     fontSize: 14,
-    color: '#A0A5B5', // Slightly crisper light gray text
+    color: '#64748B',
     letterSpacing: -0.1,
   },
   greetingSubheading: {
-    fontFamily: 'Montserrat-SemiBold', // Shifted from Bold to SemiBold to look clean and modern
-    fontSize: 18,                      // Scaled down from 26 to look elegant on two lines
-    color: '#2D3142',                  // Beautiful deep charcoal instead of heavy black
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 18,
+    color: '#0F172A',
     marginTop: 6,
     letterSpacing: -0.3,
-    lineHeight: 24,                    // Balanced space between lines
+    lineHeight: 24,
   },
   bellButton: {
     width: 48,
@@ -145,10 +201,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     borderWidth: 1,
-    borderColor: '#F5F5F5',
-    shadowColor: '#000000',
+    borderColor: '#F1F5F9',
+    shadowColor: '#0066EE',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.03,
     shadowRadius: 8,
     elevation: 2,
   },
@@ -171,7 +227,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontFamily: 'Montserrat-SemiBold', 
-    color: '#1A1A1A',
+    color: '#0F172A',
   }
 });
 

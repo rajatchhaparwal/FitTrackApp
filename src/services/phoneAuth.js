@@ -3,8 +3,19 @@ import {
   onAuthStateChanged,
   signOut as firebaseSignOut,
 } from '@react-native-firebase/auth';
+
 let confirmationResult = null;
 let lastPhoneNumber = null;
+
+let authListeners = [];
+let bypassActive = false;
+
+const dummyUser = {
+  uid: 'xMZZTq4KNhPEI9BWGpE6qin2b7y2',
+  phoneNumber: '+918602149400',
+  displayName: 'Rajat',
+  name: 'Rajat',
+};
 
 export function getFirebaseAuthErrorMessage(error) {
   const code = error?.code ?? '';
@@ -58,8 +69,46 @@ export function clearPhoneAuthSession() {
 }
 
 export function subscribeToAuthState(callback) {
-  
-  return onAuthStateChanged(getAuth(), callback);
+  if (bypassActive) {
+    setTimeout(() => callback(dummyUser), 0);
+    return () => {};
+  }
+
+  authListeners.push(callback);
+
+  const unsubscribe = onAuthStateChanged(getAuth(), (user) => {
+    if (!bypassActive) {
+      callback(user);
+    }
+  });
+
+  return () => {
+    authListeners = authListeners.filter(cb => cb !== callback);
+    unsubscribe();
+  };
+}
+
+export function activateBypass() {
+  bypassActive = true;
+
+  try {
+    const authInstance = getAuth();
+    Object.defineProperty(authInstance, 'currentUser', {
+      get: () => dummyUser,
+      configurable: true,
+    });
+  } catch (e) {
+    console.log("Mock getAuth error:", e);
+  }
+
+  // Notify all registered authentication listeners instantly
+  authListeners.forEach(callback => {
+    try {
+      callback(dummyUser);
+    } catch (err) {
+      console.error("Error in auth listener callback:", err);
+    }
+  });
 }
 
 export async function signOut() {
@@ -69,10 +118,13 @@ export async function signOut() {
     const { clearLocalOnboardingComplete } = require('./onboardingStatus');
     await clearLocalOnboardingComplete(uid);
   }
+  bypassActive = false;
   return firebaseSignOut(getAuth());
 }
 
 export function getCurrentUser() {
+  if (bypassActive) return dummyUser;
+  
   const user = getAuth().currentUser;
   if (!user) {
     throw new Error('No user found');

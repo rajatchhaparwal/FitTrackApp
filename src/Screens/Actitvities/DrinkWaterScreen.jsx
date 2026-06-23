@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,12 @@ import {
   TouchableOpacity,
   Platform,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import auth from '@react-native-firebase/auth';
+import api_call from '../../../api';
 
 // Simple, clean fallback theme — replace these strings with your global config if you have one
 const GLOBAL_THEME = {
@@ -24,6 +27,8 @@ const GLOBAL_THEME = {
   border: '#ECECEC',
 };
 
+import { scheduleDelayedNotification } from '../../services/notificationService';
+
 const GOAL_ML = 2500;
 const CUP_SIZES = [
   { label: 'S', ml: 150 },
@@ -32,31 +37,86 @@ const CUP_SIZES = [
 ];
 
 const DrinkWaterScreen = ({ navigation }) => {
-  const [consumed, setConsumed] = useState(1200);
+  const [consumed, setConsumed] = useState(0);
   const [cupIndex, setCupIndex] = useState(1);
-  const [history, setHistory] = useState([
-    { id: 1, ml: 500, time: '08:00' },
-    { id: 2, ml: 250, time: '09:30' },
-    { id: 3, ml: 250, time: '11:15' },
-    { id: 4, ml: 200, time: '13:00' },
-  ]);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const fetchWater = async () => {
+      try {
+        const user = auth().currentUser;
+        if (!user) return;
+
+        const res = await fetch(`${api_call}/DietLog/today`, {
+          headers: { 'firebase-uid': user.uid }
+        });
+        const resData = await res.json();
+        if (active && resData.success && resData.data) {
+          setConsumed(resData.data.waterIntakeMl || 0);
+          if (resData.data.waterIntakeMl > 0) {
+            setHistory([
+              { id: Date.now(), ml: resData.data.waterIntakeMl, time: new Date().toTimeString().slice(0, 5) }
+            ]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching water:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchWater();
+    return () => { active = false; };
+  }, []);
 
   const currentCup = CUP_SIZES[cupIndex];
   const progressPercent = Math.min(Math.round((consumed / GOAL_ML) * 100), 100);
   const remaining = Math.max(0, GOAL_ML - consumed);
 
+  const saveWaterToBackend = async (newAmount) => {
+    try {
+      const user = auth().currentUser;
+      if (!user) return;
+
+      await fetch(`${api_call}/DietLog/water`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'firebase-uid': user.uid,
+        },
+        body: JSON.stringify({ waterIntakeMl: newAmount })
+      });
+    } catch (err) {
+      console.error('Error saving water:', err);
+    }
+  };
+
   const addWater = () => {
     const now = new Date();
     const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    setConsumed((prev) => prev + currentCup.ml);
+    const nextAmount = consumed + currentCup.ml;
+    setConsumed(nextAmount);
     setHistory((prev) => [{ id: Date.now(), ml: currentCup.ml, time }, ...prev]);
+    saveWaterToBackend(nextAmount);
+    
+    // Schedule 1 hour hydration reminder
+    scheduleDelayedNotification(
+      '💧 Hydration Reminder',
+      `It's been an hour since you logged water. Keep it up! Drink another ${currentCup.ml}ml cup to meet your goal.`,
+      3600,
+      'water'
+    ).catch(e => console.log('Error scheduling water alert:', e));
   };
 
   const removeLastWater = () => {
     if (history.length === 0) return;
     const last = history[0];
-    setConsumed((prev) => Math.max(0, prev - last.ml));
+    const nextAmount = Math.max(0, consumed - last.ml);
+    setConsumed(nextAmount);
     setHistory((prev) => prev.slice(1));
+    saveWaterToBackend(nextAmount);
   };
 
   return (

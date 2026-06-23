@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const userData = {
     proteinConsumed: 45,
@@ -26,7 +27,7 @@ const TrackFood = () => {
         {/* Icon, Text, and Add Button */}
         <View style={styles.row}>
           <View style={styles.iconContainer}>
-            <Text style={{ fontSize: 20 }}>🍴</Text> 
+            <Icon name="silverware-fork-knife" size={24} color="#E67E22" />
           </View>
           
           <View style={styles.textGroup}>

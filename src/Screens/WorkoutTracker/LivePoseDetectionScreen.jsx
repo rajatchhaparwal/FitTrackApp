@@ -1,0 +1,332 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  StatusBar,
+  Alert,
+} from 'react-native';
+import { Camera } from 'react-native-vision-camera';
+import { MediapipeCamera } from 'react-native-mediapipe';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import axios from 'axios';
+import { getAuth } from '@react-native-firebase/auth';
+import api_call from '../../../api';
+import { usePoseDetection, POSE_MODEL } from './hooks/usePoseDetection';
+import {
+  analyzePoseFrame,
+  createRepCounter,
+  mapApiPoseConfig,
+} from './utils/poseAnalyzer';
+import { getPoseConfigForExercise } from './data/exercisePoseConfigs';
+
+const LivePoseDetectionScreen = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
+  const {
+    exerciseName = 'Exercise',
+    exerciseId,
+    poseConfig: routePoseConfig,
+    targetReps = 12,
+    targetDurationSec,
+    workoutTitle,
+  } = route.params ?? {};
+
+  const [hasPermission, setHasPermission] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [poseConfig, setPoseConfig] = useState(routePoseConfig ?? getPoseConfigForExercise(exerciseName));
+  const [repCount, setRepCount] = useState(0);
+  const [formScore, setFormScore] = useState(100);
+  const [currentAngle, setCurrentAngle] = useState(null);
+  const [correctionBanner, setCorrectionBanner] = useState(null);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [sessionActive, setSessionActive] = useState(true);
+
+  const repCounterRef = useRef(null);
+  const formIssuesRef = useRef(new Set());
+  const startTimeRef = useRef(Date.now());
+
+  useEffect(() => {
+    (async () => {
+      const status = await Camera.requestCameraPermission();
+      setHasPermission(status === 'granted');
+      setLoading(false);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (exerciseId && !routePoseConfig) {
+      axios
+        .get(`${api_call}/Exercise/${exerciseId}/tracking`)
+        .then((res) => {
+          if (res.data?.success && res.data?.data) {
+            setPoseConfig(mapApiPoseConfig(res.data.data));
+          }
+        })
+        .catch(() => {
+          setPoseConfig((prev) => prev ?? getPoseConfigForExercise(exerciseName));
+        });
+    }
+  }, [exerciseId, exerciseName, routePoseConfig]);
+
+  useEffect(() => {
+    const thresholds = poseConfig?.metrics_calculation?.thresholds ?? {};
+    repCounterRef.current = createRepCounter(thresholds);
+  }, [poseConfig]);
+
+  useEffect(() => {
+    if (!sessionActive) return undefined;
+    const timer = setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - startTimeRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [sessionActive]);
+
+  const onResults = useCallback(
+    (result) => {
+      if (!sessionActive) return;
+      const landmarks = result.results?.[0]?.landmarks?.[0];
+      if (!landmarks) return;
+
+      const analysis = analyzePoseFrame(landmarks, poseConfig, repCounterRef.current);
+      setRepCount(analysis.repCount);
+      setFormScore(analysis.formScore);
+      setCurrentAngle(analysis.currentAngle != null ? Math.round(analysis.currentAngle) : null);
+
+      if (analysis.formIssues?.length) {
+        analysis.formIssues.forEach((issue) => formIssuesRef.current.add(issue));
+      }
+
+      const banner = analysis.activeCorrections?.[0]?.ui_banner;
+      setCorrectionBanner(banner ?? null);
+
+      const isRepGoal = targetReps && analysis.repCount >= targetReps;
+      const isTimeGoal = targetDurationSec && elapsedSec >= targetDurationSec;
+      if (isRepGoal || isTimeGoal) {
+        setSessionActive(false);
+      }
+    },
+    [poseConfig, sessionActive, targetReps, targetDurationSec, elapsedSec],
+  );
+
+  const callbacks = useMemo(
+    () => ({
+      onResults,
+      onError: (error) => console.error('Pose detection error:', error),
+    }),
+    [onResults],
+  );
+
+  const solution = usePoseDetection(callbacks, 'LIVE_STREAM', POSE_MODEL, {
+    minPoseDetectionConfidence: 0.65,
+    delegate: 'GPU',
+    fpsMode: 30,
+  });
+
+  const finishSession = async () => {
+    setSessionActive(false);
+    const durationMins = Math.max(1, Math.round(elapsedSec / 60));
+
+    try {
+      const uid = getAuth().currentUser?.uid;
+      await axios.post(
+        `${api_call}/WorkoutLog`,
+        {
+          workoutType: 'strength',
+          title: workoutTitle || exerciseName,
+          durationMins,
+          exercises: [
+            {
+              exerciseId: exerciseId || poseConfig?.exercise_id,
+              exerciseName,
+              muscleGroup: 'general',
+              sets: [{ setNumber: 1, reps: repCount, isBodyweight: true, completed: true }],
+            },
+          ],
+          poseData: {
+            formScore,
+            repCount,
+            formIssues: Array.from(formIssuesRef.current),
+          },
+          source: 'ai_recommended',
+        },
+        uid ? { headers: { 'firebase-uid': uid } } : undefined,
+      );
+    } catch (err) {
+      console.log('Workout log save failed (offline ok):', err?.message);
+    }
+
+    Alert.alert(
+      'Workout Complete',
+      `${exerciseName}\nReps: ${repCount}\nForm Score: ${formScore}%`,
+      [{ text: 'Done', onPress: () => navigation.goBack() }],
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#5A8BFF" />
+      </View>
+    );
+  }
+
+  if (!hasPermission) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.permissionText}>Camera permission is required for AI pose tracking.</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.backBtnText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const evaluationType = poseConfig?.metrics_calculation?.evaluation_type;
+  const isStaticHold = evaluationType === 'static_hold_alignment';
+  const progress = targetReps
+    ? Math.min(100, Math.round((repCount / targetReps) * 100))
+    : targetDurationSec
+      ? Math.min(100, Math.round((elapsedSec / targetDurationSec) * 100))
+      : 0;
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+
+      <MediapipeCamera style={StyleSheet.absoluteFill} solution={solution} activeCamera="front" />
+
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.iconBtnText}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.titleWrap}>
+          <Text style={styles.exerciseTitle}>{exerciseName}</Text>
+          <Text style={styles.liveTag}>● LIVE AI TRACKING</Text>
+        </View>
+        <TouchableOpacity style={styles.iconBtn} onPress={finishSession}>
+          <Text style={styles.iconBtnText}>✓</Text>
+        </TouchableOpacity>
+      </View>
+
+      {correctionBanner ? (
+        <View style={styles.correctionBanner}>
+          <Text style={styles.correctionText}>{correctionBanner}</Text>
+        </View>
+      ) : null}
+
+      <View style={[styles.statsPanel, { paddingBottom: insets.bottom + 20 }]}>
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{isStaticHold ? `${elapsedSec}s` : repCount}</Text>
+            <Text style={styles.statLabel}>{isStaticHold ? 'Hold Time' : 'Reps'}</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{formScore}%</Text>
+            <Text style={styles.statLabel}>Form Score</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{currentAngle ?? '—'}°</Text>
+            <Text style={styles.statLabel}>Angle</Text>
+          </View>
+        </View>
+
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${progress}%` }]} />
+        </View>
+        <Text style={styles.progressLabel}>
+          {targetReps
+            ? `${repCount} / ${targetReps} reps`
+            : targetDurationSec
+              ? `${elapsedSec}s / ${targetDurationSec}s`
+              : 'Tracking active'}
+        </Text>
+
+        <TouchableOpacity style={styles.finishBtn} onPress={finishSession} activeOpacity={0.85}>
+          <Text style={styles.finishBtnText}>Finish & Save</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#000' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#111' },
+  permissionText: { color: '#FFF', textAlign: 'center', fontSize: 16, marginBottom: 20 },
+  backBtn: { backgroundColor: '#5A8BFF', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24 },
+  backBtnText: { color: '#FFF', fontWeight: '700' },
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    zIndex: 10,
+  },
+  iconBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconBtnText: { color: '#FFF', fontSize: 20, fontWeight: '700' },
+  titleWrap: { flex: 1, alignItems: 'center' },
+  exerciseTitle: { color: '#FFF', fontSize: 17, fontWeight: '700' },
+  liveTag: { color: '#4ADE80', fontSize: 11, fontWeight: '700', marginTop: 2 },
+  correctionBanner: {
+    position: 'absolute',
+    top: '18%',
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(239, 68, 68, 0.92)',
+    borderRadius: 14,
+    padding: 14,
+    zIndex: 10,
+  },
+  correctionText: { color: '#FFF', fontWeight: '700', textAlign: 'center', fontSize: 14 },
+  statsPanel: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  statBox: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  statValue: { color: '#FFF', fontSize: 26, fontWeight: '800' },
+  statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 12, marginTop: 4 },
+  progressTrack: {
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  progressFill: { height: '100%', backgroundColor: '#5A8BFF', borderRadius: 4 },
+  progressLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginBottom: 16, textAlign: 'center' },
+  finishBtn: {
+    backgroundColor: '#2563EB',
+    borderRadius: 28,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  finishBtnText: { color: '#FFF', fontSize: 17, fontWeight: '700' },
+});
+
+export default LivePoseDetectionScreen;

@@ -1,97 +1,318 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# FitTrack App
 
-# Getting Started
+**AI-powered fitness tracking app** built with React Native 0.83 — tracks workouts, diet, hydration, and provides personalised exercise & food recommendations using the **FatSecret Platform API**.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+---
 
-## Step 1: Start Metro
+## ✨ Features
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+| Feature | Description |
+|---|---|
+| 📱 Phone Auth | Firebase OTP-based authentication |
+| 🏠 Dashboard | Personalised greeting, trending workouts, activity summary |
+| 💪 Workout Tracker | Browse body-focus routines, live pose detection, progress tracking |
+| 🥗 Diet Tracker | Log meals by type, calorie & macro tracking against personal goals |
+| 📸 Snap & Identify | Camera-based AI meal recognition via backend |
+| 🔍 **Food Search** | Real-time food search powered by **FatSecret API** with full nutrition data |
+| 🏋️ **Exercise Recommendations** | AI-personalised workouts based on user's goal, fitness level & BMI |
+| 🍽️ **Food Recommendations** | Daily meal plan + food suggestions aligned to calorie goal |
+| 🔎 **Global Search Bar** | Works on Home, Diet, Workout screens — searches food & exercises simultaneously |
+| 💧 Hydration Tracker | Daily water intake logging |
+| 👤 User Profile | View & edit profile, goal, dietary preferences |
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+---
 
-```sh
-# Using npm
-npm start
+## 🚀 Tech Stack
 
-# OR using Yarn
-yarn start
+- **React Native** 0.83.1 (New Architecture)
+- **React Navigation** v7 (Stack + Bottom Tabs)
+- **Firebase** – Auth (Phone OTP)
+- **FatSecret Platform API** v2 – food search & nutrition data
+- **react-native-vision-camera** + **react-native-mediapipe** – pose detection
+- **react-native-reanimated** – animations
+- **Axios** – backend API calls
+- **Node.js / Express** – custom backend (in `/back`)
+
+---
+
+## 📁 Project Structure
+
+```
+FittrackApp/
+├── App.jsx                          # Root navigator (Stack + Tabs)
+├── api.js                           # Backend base URL
+├── UserContext.js                   # Global user state & API calls
+│
+├── src/
+│   ├── services/
+│   │   ├── fatsecretApi.js          # ⭐ FatSecret OAuth2 wrapper
+│   │   ├── exerciseRecommendation.js # ⭐ Exercise recommendation engine
+│   │   ├── foodRecommendation.js    # ⭐ Food recommendation engine
+│   │   ├── phoneAuth.js             # Firebase phone auth
+│   │   ├── mongoAuth.js             # MongoDB user auth
+│   │   ├── onboardingStatus.js      # Onboarding flow management
+│   │   └── safeStorage.js           # Secure local storage
+│   │
+│   ├── Screens/
+│   │   ├── Home.jsx                 # Dashboard home
+│   │   ├── SplashScreen.jsx
+│   │   ├── Auth/                    # Login, OTP, Profile setup
+│   │   ├── DietTracker/
+│   │   │   ├── DietTracker.jsx      # ⭐ Meal log with real calorie goals
+│   │   │   └── CaptureMeal.jsx      # ⭐ Camera + FatSecret manual search
+│   │   ├── WorkoutTracker/
+│   │   │   ├── WorkoutTracker.jsx   # ⭐ With personalised recommendations
+│   │   │   ├── AbsBeginnerScreen.jsx
+│   │   │   ├── SpecificWorkoutPage.jsx
+│   │   │   └── LivePoseDetectionScreen.jsx
+│   │   ├── FoodSearch/
+│   │   │   └── FoodSearchScreen.jsx  # ⭐ Full FatSecret food search screen
+│   │   ├── ExerciseRecommendation/
+│   │   │   └── ExerciseRecommendationScreen.jsx # ⭐ AI exercise recommendations
+│   │   ├── FoodRecommendation/
+│   │   │   └── FoodRecommendationScreen.jsx     # ⭐ Meal plan generator
+│   │   ├── UserProfile/
+│   │   └── Actitvities/
+│   │
+│   ├── components/
+│   │   ├── SearchNotification&otherIconsLogic/
+│   │   │   └── SearchBar.jsx        # ⭐ Functional global search bar
+│   │   ├── DietTracker/
+│   │   │   └── TrackFood.jsx
+│   │   ├── workoutTracker/
+│   │   │   └── WhatToTrain.jsx
+│   │   └── ActivityTracker/
+│   │       ├── Activities.jsx
+│   │       └── TodaysGoalCard.jsx
+│   │
+│   ├── constants/
+│   └── utils/
+│
+└── android/                         # Android native project
 ```
 
-## Step 2: Build and run your app
+---
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+## 🔧 Setup & Installation
 
-### Android
+### Prerequisites
 
-```sh
-# Using npm
-npm run android
+| Tool | Version |
+|---|---|
+| Node.js | ≥ 20 |
+| React Native CLI | Latest |
+| Android Studio | Hedgehog+ (API 35) |
+| JDK | 17 (Eclipse Temurin) |
+| Android SDK | 36 |
+| NDK | 27.0.12077973 |
 
-# OR using Yarn
-yarn android
+### 1. Clone & Install
+
+```bash
+git clone <your-repo-url>
+cd FittrackApp
+npm install
 ```
 
-### iOS
+### 2. Backend Setup
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+```bash
+cd ../back
+npm install
+node index.js          # Starts on port 5000
 ```
 
-Then, and every time you update your native dependencies, run:
+Update `api.js` with your machine's local IP:
 
-```sh
-bundle exec pod install
+```js
+// FittrackApp/api.js
+const api_call = 'http://YOUR_LOCAL_IP:5000';
+export default api_call;
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+### 3. Firebase Setup
 
-```sh
-# Using npm
-npm run ios
+1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
+2. Enable **Phone Authentication**
+3. Download `google-services.json` → place in `android/app/`
 
-# OR using Yarn
-yarn ios
+### 4. FatSecret API (Already configured ✅)
+
+The app uses FatSecret Platform API v2. Credentials are already integrated in `src/services/fatsecretApi.js`:
+
+```
+Client ID:     197ebdcdca80403ebf89af543ac75dae
+Client Secret: d7c83897f7e94d9a9b41361ad760484a
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+> **Security Note:** For production, move these to environment variables using `react-native-config` or store server-side.
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+### 5. Run on Android
 
-## Step 3: Modify your app
+```bash
+# Start Metro bundler
+npx react-native start
 
-Now that you have successfully run the app, let's make changes!
+# In a new terminal
+npx react-native run-android
+```
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+---
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+## 🍽️ FatSecret API Integration
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+### How it works
 
-## Congratulations! :tada:
+```
+User types "chicken" in search bar
+      ↓
+SearchBar.jsx (debounced 500ms)
+      ↓
+fatsecretApi.js → getAccessToken() [OAuth2 client_credentials]
+      ↓
+FatSecret Token URL: https://oauth.fatsecret.com/connect/token
+      ↓
+fatsecretApi.js → searchFood("chicken")
+      ↓
+FatSecret API: https://platform.fatsecret.com/rest/server.api
+      ↓
+Returns: [ { name, calories, protein, carbs, fat, ... } ]
+      ↓
+Displayed as dropdown suggestions → Navigate to FoodSearchScreen
+```
 
-You've successfully run and modified your React Native App. :partying_face:
+### API Methods
 
-### Now what?
+| Function | Description |
+|---|---|
+| `getAccessToken()` | Fetches OAuth2 Bearer token (cached for duration) |
+| `searchFood(query, maxResults)` | Searches foods by name |
+| `getFoodById(foodId)` | Gets full nutrition detail for one food |
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+---
 
-# Troubleshooting
+## 💪 Exercise Recommendation System
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+Exercises are scored based on:
 
-# Learn More
+| Factor | Logic |
+|---|---|
+| **User Goal** | Weight loss → cardio boosted; Muscle gain → strength boosted |
+| **Fitness Level** | Beginner only sees beginner exercises; Advanced sees all |
+| **BMI** | BMI > 30 → low-impact exercises prioritized |
+| **Calorie Burn** | High-burn exercises get bonus score |
 
-To learn more about React Native, take a look at the following resources:
+**Available body parts:** Abs, Arm, Chest, Leg, Shoulder, Back, Full Body  
+**Exercise types:** Strength, Cardio, Flexibility  
+**Total exercises in database:** 30+
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+---
+
+## 🥗 Food Recommendation System
+
+Meal plan generated based on:
+
+| Factor | Logic |
+|---|---|
+| **Calorie Goal** | Sourced from `userData.calorie_goal` |
+| **Goal** | Weight loss → low-cal high-protein; Muscle gain → high-protein high-cal |
+| **Dietary Preference** | Vegetarian filter applied from user profile |
+| **Meal Type** | Separate recommendations for Breakfast, Lunch, Dinner, Snacks |
+
+**Total foods in database:** 20+ with full macro data  
+**Macros tracked:** Calories, Protein, Carbs, Fat, Fiber, Sugar
+
+---
+
+## 🔍 Search Bar (Global)
+
+The unified SearchBar component (`SearchBar.jsx`) works across:
+
+| Screen | Behaviour |
+|---|---|
+| **Home** | Searches food + exercises simultaneously, shows inline dropdown |
+| **Diet Tracker** | Meal sections tap → opens FoodSearch screen |
+| **CaptureMeal** | Inline food search with FatSecret, debounced 500ms |
+| **WorkoutTracker** | Tappable search bar → ExerciseRecommendation screen |
+
+**Search flow:**
+1. User types → 500ms debounce
+2. Parallel calls to FatSecret (food) + local exercise DB
+3. Top 8 results shown as dropdown
+4. Tap result → navigate to full screen or add directly
+
+---
+
+## 🗺️ Navigation Map
+
+```
+App
+└── Stack Navigator
+    ├── Login / Otp
+    ├── CompleteUserProfile (onboarding)
+    └── MyTab (Bottom Tabs)
+        ├── Home
+        ├── Workout → ExerciseRecommendation
+        ├── Diet    → FoodSearch | FoodRecommendation | CaptureMeal
+        └── Profile
+    
+    Stack Screens (accessible from tabs):
+    ├── FoodSearch            ← food search with FatSecret
+    ├── ExerciseRecommendation ← personalised AI workouts
+    ├── FoodRecommendation    ← meal plan generator
+    ├── CaptureMeal           ← camera + search
+    ├── AbsBeginnerScreen     ← workout detail
+    ├── SpecificWorkoutPage
+    ├── LivePoseDetection
+    ├── DrinkWaterScreen
+    └── Activities
+```
+
+---
+
+## ⚙️ Environment Variables
+
+For production, extract these to `.env`:
+
+```env
+FATSECRET_CLIENT_ID=197ebdcdca80403ebf89af543ac75dae
+FATSECRET_CLIENT_SECRET=d7c83897f7e94d9a9b41361ad760484a
+API_BASE_URL=http://your-server.com:5000
+```
+
+Then use `react-native-config` to load them.
+
+---
+
+## 🐛 Known Issues & Fixes
+
+### Android Build — Gradle Cache Corruption
+
+If you see `checkDebugAarMetadata FAILED` with immutable workspace errors:
+
+```powershell
+# Stop all Gradle daemons
+cd android && .\gradlew.bat --stop
+
+# Delete corrupted transforms cache (use long-path prefix on Windows)
+Remove-Item -LiteralPath "\\?\C:\Users\<YOU>\.gradle\caches\9.0.0\transforms" -Recurse -Force
+
+# Delete CMake build caches
+Remove-Item -Recurse -Force android\app\.cxx
+Remove-Item -Recurse -Force android\app\build
+
+# Rebuild
+npx react-native run-android
+```
+
+### Metro Bundler Port Conflict
+
+```bash
+npx react-native start --reset-cache
+```
+
+---
+
+## 📝 Licence
+
+MIT — © 2025 FitTrack

@@ -71,34 +71,33 @@ export async function clearLocalOnboardingComplete(uid) {
   return setLocalOnboardingComplete(uid, false);
 }
 
-/** Check server + local cache whether onboarding is done */
+/** Check server whether onboarding is done (authoritative over local cache). */
 export async function resolveOnboardingStatus(user) {
   if (!user?.uid) {
     return false;
   }
 
   try {
-    const localComplete = await getLocalOnboardingComplete(user.uid);
-    if (localComplete) {
-      return true;
-    }
-  } catch {
-    // continue to server check
-  }
-
-  try {
-    const response = await api.post(`${API_BASE}/login`, {
-      firebaseUid: user.uid,
-      phoneNumber: user.phoneNumber ?? undefined,
+    const response = await api.get(`${API_BASE}/Home`, {
+      headers: { 'firebase-uid': user.uid },
     });
 
     const serverComplete = parseOnboardingCompleteFromApi(response.data);
     if (serverComplete) {
       await setLocalOnboardingComplete(user.uid, true);
+    } else {
+      await clearLocalOnboardingComplete(user.uid);
     }
     return serverComplete;
   } catch (error) {
+    if (error.response?.status === 404) {
+      await clearLocalOnboardingComplete(user.uid);
+      return false;
+    }
+
     console.warn('Onboarding status check failed:', error?.message ?? error);
+
+    // Do not trust stale local cache when the server cannot be reached.
     return false;
   }
 }

@@ -1,111 +1,109 @@
-/** Core FitTrack features — shown on motivation screens */
+/** Core FitTrack features — shown on the final insight screen */
 export const FITTRACK_FEATURES = {
   pose: {
     icon: 'camera-outline',
-    title: 'Real-time Pose Detection',
-    desc: 'Train with your camera. Get instant form feedback on every rep — so you improve safely, even alone.',
+    title: 'Real-time form feedback',
+    desc: 'Train with your camera and get rep-by-rep guidance.',
     color: '#5A8BFF',
-    bg: '#EEF3FF',
   },
   meals: {
     icon: 'food-apple-outline',
-    title: 'AI Meal Tracker',
-    desc: 'Snap your plate. AI logs your food in seconds — no tedious searching, no giving up after day three.',
+    title: 'Smart meal tracking',
+    desc: 'Log meals quickly and stay on top of nutrition.',
     color: '#34C759',
-    bg: '#E8FAEE',
   },
   coach: {
     icon: 'message-text-outline',
-    title: 'AI Fitness Coach',
-    desc: 'Ask anything — workouts, meals, soreness, motivation. A coach who never judges and always replies.',
+    title: 'Personal fitness coach',
+    desc: 'Workouts, meals, and recovery tips when you need them.',
     color: '#7C5CFF',
-    bg: '#F0EBFF',
   },
   calories: {
     icon: 'fire',
-    title: 'Calorie Engine',
-    desc: 'Your daily targets, calculated from your body and goal. Know exactly what to eat — no confusing math.',
+    title: 'Calorie targets',
+    desc: 'Daily goals built from your body stats and objective.',
     color: '#FF6B4A',
-    bg: '#FFF0EC',
   },
 };
 
 /**
- * One motivation screen per phase — simple headline + one hero feature
- * @type {Record<string, { headline: (name: string) => string, subtext: string, feature: keyof FITTRACK_FEATURES, quote?: string }>}
+ * Motivation screens between form steps — headline + hero photo
+ * @type {Record<string, { headline: (name: string) => string, subtext: string, image: string, feature?: keyof FITTRACK_FEATURES, quote?: string }>}
  */
 export const INSIGHT_PHASES = {
   name: {
     headline: (name) =>
-      name
-        ? `${name}, you showed up. That is already a win.`
-        : 'You showed up. That is already a win.',
+      name ? `Good to meet you, ${name}.` : 'Good to meet you.',
     subtext:
-      'You do not need perfect motivation today. You need one small step — and you just took it.',
+      'Every lasting habit starts with a single session. You are already on your way.',
+    image:
+      'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=900&auto=format&fit=crop&q=80',
     feature: 'coach',
-    quote: '"The only bad workout is the one that did not happen."',
+    quote: 'Small steps today lead to big changes tomorrow.',
   },
   body: {
-    headline: () => 'Built around your body — not a generic plan.',
+    headline: () => 'Your plan starts with you.',
     subtext:
-      'Your age, weight, and height power everything. No more guessing what is right for you.',
+      'Age, height, and weight help us set safe targets that actually fit your body.',
+    image:
+      'https://images.unsplash.com/photo-1574680096145-d05b474e2655?w=900&auto=format&fit=crop&q=80',
     feature: 'calories',
-    quote: '"What gets measured gets improved."',
+    quote: 'Train for your body — not someone else’s.',
   },
   goal: {
-    headline: () => 'Your goal is the destination. We map the route.',
+    headline: () => 'One clear goal. One focused plan.',
     subtext:
-      'Whether you want to lose weight, build muscle, or move better — FitTrack adapts to you.',
+      'Whether you want to lose weight, build muscle, or move better — we shape the plan around that.',
+    image:
+      'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=900&auto=format&fit=crop&q=80',
     feature: 'pose',
-    quote: '"Form first. Weight second. Results follow."',
+    quote: 'Consistency beats intensity every time.',
   },
   lifestyle: {
-    headline: () => 'A plan you can actually live with.',
+    headline: () => 'Built for your real routine.',
     subtext:
-      'Busy week? Beginner? Coming back after a break? We scale to your real life, not an ideal one.',
+      'Busy schedule or just getting started? Your plan adjusts to how you actually live.',
+    image:
+      'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=900&auto=format&fit=crop&q=80',
     feature: 'meals',
-    quote: '"Nutrition is the foundation. Training builds on top."',
+    quote: 'Good nutrition makes every workout count.',
   },
   finish: {
     headline: (name) =>
-      name ? `${name}, your team is ready.` : 'Your team is ready.',
+      name ? `${name}, you are all set.` : 'You are all set.',
     subtext:
-      'Pose coaching, meal tracking, calorie targets, and an AI coach — everything in one place.',
-    feature: null,
-    quote: '"Start where you are. Use what you have. Do what you can."',
+      'Form coaching, meal tracking, calorie targets, and guided workouts — ready when you are.',
+    image:
+      'https://images.unsplash.com/photo-1518310383802-640c87374f3f?w=900&auto=format&fit=crop&q=80',
+    quote: 'Start where you are. Keep showing up.',
   },
 };
 
-/** Short encouragement shown on form steps */
+/** Copy for form steps */
 export const FORM_STEP_COPY = {
   name: {
     icon: 'account-outline',
     title: 'What should we call you?',
-    subtitle: 'Your name makes this journey feel personal — not generic.',
-    hint: 'We will use this across your plan and coach chats.',
+    subtitle: 'We will use your name across your dashboard and workout plan.',
   },
   body: {
     icon: 'heart-pulse',
-    title: 'About you',
-    subtitle: 'Honest numbers help us help you — no judgment, ever.',
-    hint: 'Used only for your calorie engine and workout intensity.',
+    title: 'Tell us about yourself',
+    subtitle: 'These details help us calculate calories and workout intensity for you.',
   },
   goal: {
     icon: 'flag-checkered',
-    title: 'Your main goal',
-    subtitle: 'Pick what matters most right now. You can change it later.',
-    hint: 'One clear goal beats trying to do everything at once.',
+    title: 'What is your main goal?',
+    subtitle: 'Pick what matters most right now. You can change this later.',
   },
   lifestyle: {
     icon: 'walk',
-    title: 'Your routine',
-    subtitle: 'Be honest — a realistic plan beats an ambitious one you quit.',
-    hint: 'We match workout volume to how active you really are.',
+    title: 'Your activity and preferences',
+    subtitle: 'Tell us how active you are and what kind of training you enjoy.',
   },
   health: {
     icon: 'shield-check-outline',
     title: 'Anything we should know?',
-    subtitle: 'Injuries, pain, or limits — optional, but helps us keep you safe.',
-    hint: 'Leave blank if none. We will avoid risky movements for you.',
+    subtitle: 'Share injuries or limits so we can keep your workouts safe.',
   },
 };

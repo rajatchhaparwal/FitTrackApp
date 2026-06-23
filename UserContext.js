@@ -1,9 +1,13 @@
 // UserContext.js
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-
-// 🛠️ FIX: Use your native React Native Firebase auth package instead of the web SDK
-import getAuth from '@react-native-firebase/auth'; 
+import { getAuth } from '@react-native-firebase/auth';
+import {
+  clearLocalOnboardingComplete,
+  parseOnboardingCompleteFromApi,
+  setLocalOnboardingComplete,
+} from './src/services/onboardingStatus';
+import { subscribeToAuthState } from './src/services/phoneAuth';
 
 const UserContext = createContext();
 
@@ -11,31 +15,51 @@ export const UserProvider = ({ children, api_call }) => {
   const [userData, setUserData] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   const fetchAllUserData = async () => {
     try {
       setLoading(true);
-      
-      // 🛠️ FIX: Access the current user using native syntax
-      const currentUser = getAuth().currentUser; 
+
+      const currentUser = getAuth().currentUser;
       if (!currentUser) {
+        setUserData(null);
+        setNeedsOnboarding(false);
         setLoading(false);
         return;
       }
 
       const uid = currentUser.uid;
 
-      // Fetch User Profile
       try {
-        const userResponse = await axios.get(`${api_call}/Home`, { headers: { 'firebase-uid': uid } });
-        if (userResponse.data.user) setUserData(userResponse.data.user);
-      } catch (err) {
-        console.error("Profile API error:", err.message);
+        const userResponse = await axios.get(`${api_call}/Home`, {
+          headers: { 'firebase-uid': uid },
+        });
+
+        if (userResponse.data.user) {
+          const profileComplete = parseOnboardingCompleteFromApi(userResponse.data);
+          setUserData(userResponse.data.user);
+          setNeedsOnboarding(!profileComplete);
+
+          if (profileComplete) {
+            await setLocalOnboardingComplete(uid, true);
+          } else {
+            await clearLocalOnboardingComplete(uid);
+          }
+        }
+      } catch (error) {
+        if (error.response?.status === 404) {
+          await clearLocalOnboardingComplete(uid);
+          setUserData(null);
+          setNeedsOnboarding(true);
+        } else {
+          console.error('Profile API Error:', error.message);
+          setUserData(null);
+          setNeedsOnboarding(true);
+        }
       }
-    
-    
     } catch (globalErr) {
-      console.error("Global hook error:", globalErr);
+      console.error('Global hook error:', globalErr);
     } finally {
       setLoading(false);
     }
@@ -43,7 +67,7 @@ export const UserProvider = ({ children, api_call }) => {
 
   const updateUserProfile = async (updatedFields) => {
     try {
-      const currentUser = auth().currentUser; 
+      const currentUser = getAuth().currentUser;
       if (!currentUser) return { success: false, error: "No user logged in" };
 
       const uid = currentUser.uid;
@@ -67,11 +91,12 @@ export const UserProvider = ({ children, api_call }) => {
 
   // 🛠️ FIX: Listen for auth updates using native onAuthStateChanged
   useEffect(() => {
-    const unsubscribe = getAuth().onAuthStateChanged((user) => {
+    const unsubscribe = subscribeToAuthState((user) => {
       if (user) {
         fetchAllUserData(); 
       } else {
         setUserData(null);
+        setNeedsOnboarding(false);
         setLoading(false);
       }
     });
@@ -80,13 +105,15 @@ export const UserProvider = ({ children, api_call }) => {
   }, []);
 
   return (
-    <UserContext.Provider value={{ 
-      userData, 
-      setUserData, 
-      recommendations, 
-      loading, 
+    <UserContext.Provider value={{
+      userData,
+      setUserData,
+      recommendations,
+      loading,
+      needsOnboarding,
+      setNeedsOnboarding,
       refreshData: fetchAllUserData,
-      updateUserProfile 
+      updateUserProfile,
     }}>
       {children}
     </UserContext.Provider>

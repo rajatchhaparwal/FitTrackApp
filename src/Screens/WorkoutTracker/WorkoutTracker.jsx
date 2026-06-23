@@ -10,12 +10,15 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import axios from 'axios';
 import api_call from '../../../api';
 import { RowWorkoutCard, PortraitSquareCard, PromoBannerCard } from './DiscoverWorkouts';
+import { useUser } from '../../../UserContext';
+import { getPersonalizedWorkouts } from '../../services/exerciseRecommendation';
 
 const { width } = Dimensions.get('window');
 const BODY_FOCUS_CATEGORIES = ['Abs', 'Arm', 'Chest', 'Leg', 'Shoulder'];
@@ -96,9 +99,14 @@ const RoutineCard = memo(({ routine, navigation }) => {
 // ─── MAIN SCREEN COMPONENT ───────────────────────────────────────────────────
 
 const WorkoutTracker = ({ navigation }) => {
+  const { userData } = useUser();
   const [selectedBodyFocus, setSelectedBodyFocus] = useState('Abs');
   const [workoutTemplates, setWorkoutTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Personalised exercise recommendations from user profile
+  const recommendedExercises = getPersonalizedWorkouts(userData || {}).slice(0, 3);
 
   useEffect(() => {
     const fetchWorkoutRoutines = async () => {
@@ -155,13 +163,17 @@ const WorkoutTracker = ({ navigation }) => {
               <View style={styles.textColumn}>
                 <Text style={styles.greetingSubheading}>HOME WORKOUT</Text>
               </View>
-              <View style={styles.headerRightButtons}>
-                <Icon name="fire" size={26} color="#FF5A5A" style={styles.streakFireIcon} />
-                <TouchableOpacity style={styles.proBadgeContainer} activeOpacity={0.8}>
-                  <Text style={styles.proBadgeText}>👑 PRO+</Text>
-                </TouchableOpacity>
-              </View>
             </View>
+
+            {/* 1b. Exercise Search Bar */}
+            <TouchableOpacity
+              style={styles.exerciseSearchBar}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('ExerciseRecommendation')}
+            >
+              <Icon name="magnify" size={20} color="#5A8BFF" />
+              <Text style={styles.exerciseSearchPlaceholder}>Search exercises...</Text>
+            </TouchableOpacity>
 
             {/* 2. Quick Stat Pills */}
             <View style={styles.statsRow}>
@@ -246,29 +258,64 @@ const WorkoutTracker = ({ navigation }) => {
         ListFooterComponent={() => (
           <View style={{ paddingBottom: 40 }}>
             <View style={styles.footerSpacing} />
-            
-            {/* 7. Special Promo Banner Placement */}
-            <PromoBannerCard 
+
+            {/* 7. Exercise Recommendation Banner */}
+            <TouchableOpacity
+              style={styles.recBanner}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('ExerciseRecommendation')}
+            >
+              <Icon name="lightning-bolt" size={28} color="#fff" />
+              <View style={styles.recBannerTextCol}>
+                <Text style={styles.recBannerTitle}>Recommended for You</Text>
+                <Text style={styles.recBannerSub}>Personalised based on your goal</Text>
+              </View>
+              <Icon name="chevron-right" size={22} color="rgba(255,255,255,0.8)" />
+            </TouchableOpacity>
+
+            {/* 8. Top 3 personalised exercises */}
+            {recommendedExercises.map((ex) => (
+              <TouchableOpacity
+                key={ex.id}
+                style={styles.recExCard}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('AbsBeginnerScreen', {
+                  workoutId: ex.id, name: ex.name,
+                  duration: `${ex.sets * 3} mins`, totalExercises: 1, imageUri: ex.imageUri
+                })}
+              >
+                <Image source={{ uri: ex.imageUri }} style={styles.recExImage} />
+                <View style={styles.recExInfo}>
+                  <Text style={styles.recExName}>{ex.name}</Text>
+                  <Text style={styles.recExMeta}>{ex.bodyPart} · {ex.type} · {ex.difficulty}</Text>
+                  <View style={styles.recExRow}>
+                    <Icon name="fire" size={13} color="#FF5A5A" />
+                    <Text style={styles.recExKcal}>{ex.kcalPer30} kcal/30min</Text>
+                  </View>
+                </View>
+                <Icon name="chevron-right" size={20} color="#CCC" />
+              </TouchableOpacity>
+            ))}
+
+            {/* 9. Special Promo Banner Placement */}
+            <PromoBannerCard
               countLabel="LIMITED OFFER"
               heading="Unlock Pro Personalized Coaching Plans"
               imageUri={MOCK_PROMO_BANNER.imageUri}
               onPress={() => console.log('Promo Banner Clicked')}
             />
 
-            {/* 8. Vertical List Recommended Rows Section */}
+            {/* 10. Vertical List Recommended Rows Section */}
             <Text style={[styles.subHeading, { marginBottom: 10 }]}>Recommended Rows</Text>
             {MOCK_RECOMMENDED_ROWS.map((row) => (
-              <RowWorkoutCard 
+              <RowWorkoutCard
                 key={row.id}
                 title={row.title}
                 subtext={row.subtext}
                 imageUri={row.imageUri}
                 onPress={() => navigation.navigate('AbsBeginnerScreen', {
-                  workoutId: row.id,
-                  name: row.title,
-                  duration: row.subtext,
-                  totalExercises: 12,
-                  imageUri: row.imageUri
+                  workoutId: row.id, name: row.title,
+                  duration: row.subtext, totalExercises: 12, imageUri: row.imageUri
                 })}
               />
             ))}
@@ -377,7 +424,45 @@ const styles = StyleSheet.create({
   intensityContainer: { flexDirection: 'row', marginTop: 4 },
   boltIcon: { marginRight: 2 },
   historyCapsule: { backgroundColor: '#F4F5F7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start', marginTop: 6 },
-  historyText: { fontSize: 11, color: '#A0A5B0', fontWeight: '600' }
+  historyText: { fontSize: 11, color: '#A0A5B0', fontWeight: '600' },
+
+  // Exercise search bar
+  exerciseSearchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginHorizontal: 20, marginBottom: 12, paddingHorizontal: 16, height: 48,
+    backgroundColor: '#F4F5F7', borderRadius: 14,
+    borderWidth: 1.5, borderColor: '#E0E8FF',
+  },
+  exerciseSearchPlaceholder: { flex: 1, fontSize: 14, color: '#999' },
+  exerciseSearchBadge: {
+    backgroundColor: '#5A8BFF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+  },
+  exerciseSearchBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+
+  // Rec banner
+  recBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#5A8BFF', marginHorizontal: 20, borderRadius: 18,
+    padding: 16, marginBottom: 12,
+  },
+  recBannerTextCol: { flex: 1 },
+  recBannerTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  recBannerSub:   { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2 },
+
+  // Rec exercise cards
+  recExCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#fff', marginHorizontal: 20, marginBottom: 10,
+    borderRadius: 14, padding: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+  },
+  recExImage: { width: 60, height: 60, borderRadius: 12 },
+  recExInfo:  { flex: 1 },
+  recExName:  { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 2 },
+  recExMeta:  { fontSize: 11, color: '#999', textTransform: 'capitalize' },
+  recExRow:   { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
+  recExKcal:  { fontSize: 11, color: '#FF5A5A' },
 });
 
 // ─── EXPLICIT OBJECT OBJECT MODULE SAMPLE DATASETS ───────────────────────────

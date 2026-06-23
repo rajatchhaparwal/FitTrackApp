@@ -1,19 +1,21 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   FITTRACK_FEATURES,
   INSIGHT_PHASES,
 } from '../../constants/onboardingContent';
 
-function FeatureCard({ feature, large }) {
+function FeatureLine({ feature }) {
   return (
-    <View style={[styles.featureCard, { backgroundColor: feature.bg }]}>
-      <View style={[styles.featureIcon, { backgroundColor: feature.color }]}>
-        <Icon name={feature.icon} size={large ? 28 : 24} color="#FFF" />
+    <View style={styles.featureLine}>
+      <View style={[styles.featureDot, { backgroundColor: feature.color }]}>
+        <Icon name={feature.icon} size={16} color="#FFF" />
       </View>
-      <Text style={styles.featureTitle}>{feature.title}</Text>
-      <Text style={styles.featureDesc}>{feature.desc}</Text>
+      <View style={styles.featureCopy}>
+        <Text style={styles.featureTitle}>{feature.title}</Text>
+        <Text style={styles.featureDesc}>{feature.desc}</Text>
+      </View>
     </View>
   );
 }
@@ -23,129 +25,134 @@ export default function OnboardingInsightScreen({ formData, phase }) {
   const firstName = formData.name.trim().split(/\s+/)[0] || '';
   const headline = config.headline(firstName);
   const isFinish = phase === 'finish';
+  const highlight = config.feature ? FITTRACK_FEATURES[config.feature] : null;
 
   return (
     <View style={styles.root}>
-      <View style={styles.motivationBlock}>
-        <Text style={styles.headline}>{headline}</Text>
-        <Text style={styles.subtext}>{config.subtext}</Text>
+      <Text style={styles.headline}>{headline}</Text>
+      <Text style={styles.subtext}>{config.subtext}</Text>
+
+      <View style={styles.imageWrap}>
+        <Image
+          source={{ uri: config.image }}
+          style={styles.heroImage}
+          resizeMode="cover"
+          accessibilityRole="image"
+          accessibilityLabel={headline}
+        />
+        <View style={styles.imageFade} />
       </View>
 
       {isFinish ? (
-        <View style={styles.allFeatures}>
-          {Object.values(FITTRACK_FEATURES).map((f) => (
-            <View key={f.title} style={styles.compactRow}>
-              <View style={[styles.compactIcon, { backgroundColor: f.color }]}>
-                <Icon name={f.icon} size={20} color="#FFF" />
-              </View>
-              <View style={styles.compactText}>
-                <Text style={styles.compactTitle}>{f.title}</Text>
-                <Text style={styles.compactDesc} numberOfLines={2}>
-                  {f.desc}
-                </Text>
-              </View>
-            </View>
+        <View style={styles.featureList}>
+          {Object.values(FITTRACK_FEATURES).map((feature) => (
+            <FeatureLine key={feature.title} feature={feature} />
           ))}
         </View>
-      ) : (
-        <FeatureCard feature={FITTRACK_FEATURES[config.feature]} large />
-      )}
-
-      {config.quote ? (
-        <Text style={styles.quote}>{config.quote}</Text>
+      ) : highlight ? (
+        <View style={styles.highlightBlock}>
+          <Icon name={highlight.icon} size={18} color={highlight.color} />
+          <Text style={styles.highlightText}>
+            <Text style={styles.highlightTitle}>{highlight.title}. </Text>
+            {highlight.desc}
+          </Text>
+        </View>
       ) : null}
+
+      {config.quote ? <Text style={styles.quote}>{config.quote}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
-    paddingTop: 8,
-  },
-  motivationBlock: {
-    marginBottom: 28,
+    paddingTop: 4,
   },
   headline: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: '#111827',
     lineHeight: 34,
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
   },
   subtext: {
     fontSize: 16,
-    color: '#666',
+    color: '#4B5563',
     lineHeight: 24,
-    marginTop: 12,
-    fontWeight: '500',
+    marginTop: 10,
+    fontWeight: '400',
   },
-  featureCard: {
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
+  imageWrap: {
+    marginTop: 28,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#E5E7EB',
   },
-  featureIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
+  heroImage: {
+    width: '100%',
+    aspectRatio: 4 / 3,
   },
-  featureTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#1A1A1A',
-    textAlign: 'center',
-    marginBottom: 8,
+  imageFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 48,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  featureDesc: {
-    fontSize: 15,
-    lineHeight: 23,
-    color: '#555',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  allFeatures: {
-    gap: 12,
-  },
-  compactRow: {
+  highlightBlock: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FAFAFA',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 22,
+    paddingHorizontal: 2,
   },
-  compactIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  highlightText: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#374151',
+  },
+  highlightTitle: {
+    fontWeight: '700',
+    color: '#111827',
+  },
+  featureList: {
+    marginTop: 24,
+    gap: 18,
+  },
+  featureLine: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  featureDot: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 12,
+    marginTop: 1,
   },
-  compactText: {
+  featureCopy: {
     flex: 1,
   },
-  compactTitle: {
+  featureTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: '#111827',
     marginBottom: 2,
   },
-  compactDesc: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: '#777',
+  featureDesc: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#6B7280',
   },
   quote: {
     marginTop: 28,
     fontSize: 14,
+    color: '#9CA3AF',
+    lineHeight: 21,
     fontStyle: 'italic',
-    color: '#999',
-    textAlign: 'center',
-    lineHeight: 22,
   },
 });

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet,TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 const ActivityCard = ({
   type,
   value,
@@ -23,13 +24,15 @@ const ActivityCard = ({
   const themeColor = iconcolor || '#F5F5F5';
 
   return (
-
     <View style={[styles.card, { backgroundColor: cardBg }]}>
       <TouchableOpacity 
-      onPress={() => navigation.navigate(OnPress)}>
-      {/* Header */}
-          <View style={styles.headerRow}>
-        <Text style={styles.typeText} numberOfLines={2}>
+        disabled={!OnPress}
+        onPress={() => OnPress && navigation.navigate(OnPress)}
+        activeOpacity={OnPress ? 0.7 : 1}
+      >
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <Text style={styles.typeText} numberOfLines={2}>
           {type}
         </Text>
 
@@ -39,9 +42,7 @@ const ActivityCard = ({
             { backgroundColor: themeColor },
           ]}
         >
-          <Text style={{ fontSize: 16 }}>
-            {icon}
-          </Text>
+          <Icon name={icon} size={20} color={iconcolor || '#5A8BFF'} />
         </View>
       </View>
 

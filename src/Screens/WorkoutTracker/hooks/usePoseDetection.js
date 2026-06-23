@@ -1,59 +1,55 @@
 import { useMemo } from 'react';
-import { usePoseLandmarker } from 'react-native-mediapipe';
-import { useFrameProcessor } from 'react-native-vision-camera';
-import { Worklets } from 'react-native-worklets-core';
+import {
+  usePoseDetection as useMediaPipePose,
+  RunningMode,
+  Delegate,
+} from 'react-native-mediapipe';
+
+export const POSE_MODEL = 'pose_landmarker_lite.task';
+
+const RUNNING_MODE_MAP = {
+  LIVE_STREAM: RunningMode.LIVE_STREAM,
+  IMAGE: RunningMode.IMAGE,
+  VIDEO: RunningMode.VIDEO,
+};
 
 /**
- * usePoseDetection
- *
- * @param {object}   callbacks  - { onResults, onError }
- * @param {string}   runningMode - 'LIVE_STREAM' | 'IMAGE' | 'VIDEO'
- * @param {string}   modelAsset  - filename of the .task model asset
- * @param {object}   options     - { minPoseDetectionConfidence, delegate, ... }
- * @returns {{ frameProcessor, fpsMode }}
+ * Wraps react-native-mediapipe pose detection for FitTrack.
+ * Returns the full MediaPipeSolution (frameProcessor + camera handlers).
  */
-export function usePoseDetection(callbacks, runningMode, modelAsset, options = {}) {
+export function usePoseDetection(callbacks, runningMode = 'LIVE_STREAM', modelAsset = POSE_MODEL, options = {}) {
   const {
     minPoseDetectionConfidence = 0.5,
+    minPosePresenceConfidence = 0.5,
+    minTrackingConfidence = 0.5,
     delegate = 'GPU',
+    fpsMode = 30,
   } = options;
 
-  // Build the mediapipe pose landmarker
-  const poseLandmarker = usePoseLandmarker(
-    modelAsset,
-    runningMode,
+  const mode = RUNNING_MODE_MAP[runningMode] ?? RunningMode.LIVE_STREAM;
+
+  const solution = useMediaPipePose(
     callbacks,
-    {
-      minPoseDetectionConfidence,
-      delegate,
-    },
+    mode,
+    modelAsset,
+    useMemo(
+      () => ({
+        minPoseDetectionConfidence,
+        minPosePresenceConfidence,
+        minTrackingConfidence,
+        delegate: delegate === 'GPU' ? Delegate.GPU : Delegate.CPU,
+        fpsMode,
+        numPoses: 1,
+      }),
+      [
+        minPoseDetectionConfidence,
+        minPosePresenceConfidence,
+        minTrackingConfidence,
+        delegate,
+        fpsMode,
+      ],
+    ),
   );
 
-  // Wrap JS callbacks so they can be called from the worklet thread
-  const onResultsJS = Worklets.createRunInJsFn((results) => {
-    if (callbacks.onResults) {
-      callbacks.onResults(results);
-    }
-  });
-
-  const onErrorJS = Worklets.createRunInJsFn((error) => {
-    if (callbacks.onError) {
-      callbacks.onError(error);
-    }
-  });
-
-  const frameProcessor = useFrameProcessor(
-    (frame) => {
-      'worklet';
-      if (poseLandmarker) {
-        poseLandmarker.detectForVideo(frame, Date.now());
-      }
-    },
-    [poseLandmarker],
-  );
-
-  // Use 30fps for LIVE_STREAM mode to keep the device cool
-  const fpsMode = useMemo(() => (runningMode === 'LIVE_STREAM' ? 30 : 15), [runningMode]);
-
-  return { frameProcessor, fpsMode };
+  return solution;
 }

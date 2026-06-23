@@ -1,16 +1,46 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useUser } from '../../../UserContext';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const TodaysGoalCard = ({ workoutGoal, workoutDone }) => {
+const TodaysGoalCard = ({
+  workoutGoal = 45,
+  workoutDone = 0,
+  caloriesConsumed = 0,
+  proteinConsumed = 0,
+  carbConsumed = 0,
+  fatConsumed = 0,
+  onAddFoodPress
+}) => {
+  const { userData } = useUser();
 
-  const {userData} = useUser();
-  // Hardcoded macro values with clear, readable data structure
+  const calorieGoal = userData?.personalPlan?.dailyCalories || 2000;
+  const proteinGoal = userData?.personalPlan?.proteinGrams || 120;
+  const carbGoal    = userData?.personalPlan?.carbGrams || 200;
+  const fatGoal     = userData?.personalPlan?.fatGrams || 60;
+
   const macros = {
-    protein: { value: '92', required : userData?.personalPlan?.proteinGrams, label: 'Protein', percent: 45, color: '#2C5E5A' },
-    carb: { value: '120',required : userData?.personalPlan?.carbGrams, label: 'Carbs', percent: 40, color: '#3A6B88' },
-    fat: { value: '45', required : userData?.personalPlan?.fatGrams , label: 'Fat', percent: 25, color: '#A97C50' },
-    // fibre: { value: '28',required : userData?.personalPlan?.proteinGrams,  label: 'Fibre', percent: 20, color: '#7B628C' },
+    protein: {
+      value: Math.round(proteinConsumed),
+      required: proteinGoal,
+      label: 'Protein',
+      percent: Math.min(Math.round((proteinConsumed / proteinGoal) * 100), 100),
+      color: '#0066EE'
+    },
+    carb: {
+      value: Math.round(carbConsumed),
+      required: carbGoal,
+      label: 'Carbs',
+      percent: Math.min(Math.round((carbConsumed / carbGoal) * 100), 100),
+      color: '#5A8BFF'
+    },
+    fat: {
+      value: Math.round(fatConsumed),
+      required: fatGoal,
+      label: 'Fat',
+      percent: Math.min(Math.round((fatConsumed / fatGoal) * 100), 100),
+      color: '#29B6F6'
+    },
   };
 
   const workoutPercent = Math.min((workoutDone / workoutGoal) * 100, 100);
@@ -22,30 +52,36 @@ const TodaysGoalCard = ({ workoutGoal, workoutDone }) => {
       <View style={styles.sectionHeader}>
         <View style={styles.headerLeft}>
           <View style={styles.iconCircle}>
-            <Text style={styles.emojiIcon}>🍴</Text>
+            <Icon name="silverware-fork-knife" size={20} color="#0066EE" />
           </View>
           <View style={styles.titleGroup}>
             <Text style={styles.mainTitle}>Track Food</Text>
-            <Text style={styles.subTitle}>Target: {userData?.personalPlan?.dailyCalories} kcal</Text>
+            <Text style={styles.subTitle}>
+              Target: {caloriesConsumed} / {calorieGoal} kcal
+            </Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.orangeAddBtn} activeOpacity={0.7}>
+        <TouchableOpacity 
+          style={styles.orangeAddBtn} 
+          activeOpacity={0.7}
+          onPress={onAddFoodPress}
+        >
           <Text style={styles.orangeAddText}>+</Text>
         </TouchableOpacity>
       </View>
 
-      {/* NEW: Premium Large Macro Mini-Cards Grid */}
+      {/* Premium Large Macro Mini-Cards Grid */}
       <View style={styles.macroGridContainer}>
         {Object.values(macros).map((macro, idx) => (
           <View key={idx} style={styles.macroMiniCard}>
-            <View style={{flexDirection:'row'}}>
-            <Text style={styles.macroValueText}>{macro.value}/</Text>
-            <Text style={styles.macroValueText}>{macro.required}g</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+              <Text style={styles.macroValueText}>{macro.value}</Text>
+              <Text style={styles.macroSlashText}>/{macro.required}g</Text>
             </View>
             <Text style={styles.macroLabelText}>{macro.label}</Text>
             {/* Minimalist Micro Progress Line */}
             <View style={styles.microBarBg}>
-              <View style={[styles.microBarFill, { width: `${macro.percent}%`, backgroundColor: '#3D7372' }]} />
+              <View style={[styles.microBarFill, { width: `${macro.percent}%`, backgroundColor: macro.color }]} />
             </View>
           </View>
         ))}
@@ -57,8 +93,8 @@ const TodaysGoalCard = ({ workoutGoal, workoutDone }) => {
       {/* ================= SECTION 2: EXERCISE TRACKER ================= */}
       <View style={styles.sectionHeader}>
         <View style={styles.headerLeft}>
-          <View style={[styles.iconCircle, { backgroundColor: '#F4F5F7' }]}>
-            <Text style={styles.emojiIcon}>🏃‍♂️</Text>
+          <View style={[styles.iconCircle, { backgroundColor: '#F0F4FF' }]}>
+            <Icon name="run" size={20} color="#0066EE" />
           </View>
           <View style={styles.titleGroup}>
             <Text style={styles.mainTitle}>Exercise</Text>
@@ -83,15 +119,15 @@ const TodaysGoalCard = ({ workoutGoal, workoutDone }) => {
 const styles = StyleSheet.create({
   cardContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 28,
+    borderRadius: 24,
     padding: 20,
     marginHorizontal: 16,
     marginVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.04,
+    shadowColor: '#0066EE',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
     shadowRadius: 16,
-    elevation: 3,
+    elevation: 2,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -103,78 +139,79 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#FAF9F6',
-    borderWidth: 1,
-    borderColor: '#F0EFEA',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F0F4FF',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  emojiIcon: {
-    fontSize: 18,
   },
   titleGroup: {
     marginLeft: 12,
   },
   mainTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#1A1C1E',
+    color: '#0F172A',
   },
   subTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
-    color: '#8A8F99',
-    marginTop: 1,
+    color: '#64748B',
+    marginTop: 2,
   },
   orangeAddBtn: {
     width: 32,
     height: 32,
     borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#5a8bff',
+    borderWidth: 1.5,
+    borderColor: '#0066EE',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F0F4FF',
   },
   orangeAddText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#5a8bff',
+    color: '#0066EE',
     lineHeight: 18,
   },
-  
-  // MACRO MINI-CARDS STYLING
   macroGridContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 16,
+    marginTop: 18,
     marginBottom: 4,
   },
   macroMiniCard: {
-    width: '23%', // Dynamically creates 4 perfectly balanced columns
-    backgroundColor: '#F8F9FA',
+    width: '31%',
+    backgroundColor: '#F8FAFC',
     borderRadius: 14,
-    padding: 10,
+    padding: 12,
     alignItems: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   macroValueText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#1A1C1E',
+    color: '#0F172A',
+  },
+  macroSlashText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
   },
   macroLabelText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#8A8F99',
-    marginTop: 1,
-    marginBottom: 6,
+    color: '#64748B',
+    marginTop: 2,
+    marginBottom: 8,
   },
   microBarBg: {
     width: '100%',
-    height: 3,
-    backgroundColor: '#EAECEF',
+    height: 4,
+    backgroundColor: '#E2E8F0',
     borderRadius: 2,
     overflow: 'hidden',
   },
@@ -182,40 +219,37 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 2,
   },
-
   dividerLine: {
     height: 1,
-    backgroundColor: '#F1F3F5',
+    backgroundColor: '#F1F5F9',
     marginVertical: 18,
   },
-
-  // EXERCISE MODIFICATIONS
   exerciseDataAlign: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
   exerciseValueMain: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#1A1C1E',
+    color: '#0F172A',
   },
   exerciseGoalLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#8A8F99',
+    color: '#64748B',
     marginLeft: 2,
   },
   workoutTrackBg: {
     width: '100%',
     height: 6,
-    backgroundColor: '#F1F3F5',
+    backgroundColor: '#F1F5F9',
     borderRadius: 3,
     marginTop: 14,
     overflow: 'hidden',
   },
   workoutTrackFill: {
     height: '100%',
-    backgroundColor: '#5a8bff', // Slate charcoal color instead of distracting loud blue
+    backgroundColor: '#0066EE',
     borderRadius: 3,
   },
 });
