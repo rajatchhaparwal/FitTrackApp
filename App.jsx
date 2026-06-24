@@ -32,12 +32,14 @@ import LivePoseDetectionScreen from './src/Screens/WorkoutTracker/LivePoseDetect
 
 // ── Activity Screens ───────────────────────────────────────────────────────────
 import DrinkWaterScreen from './src/Screens/Actitvities/DrinkWaterScreen';
+import StepsScreen from './src/Screens/Actitvities/StepsScreen';
 import Activities from './src/components/ActivityTracker/Activities';
 
 // ── NEW: Recommendation & Search Screens ──────────────────────────────────────
 import FoodSearchScreen from './src/Screens/FoodSearch/FoodSearchScreen';
 import ExerciseRecommendationScreen from './src/Screens/ExerciseRecommendation/ExerciseRecommendationScreen';
 import FoodRecommendationScreen from './src/Screens/FoodRecommendation/FoodRecommendationScreen';
+import FoodDetailScreen        from './src/Screens/FoodRecommendation/FoodDetailScreen';
 
 // ── API Base URL ───────────────────────────────────────────────────────────────
 import api_call from './api';
@@ -163,11 +165,13 @@ export function MyStack() {
           {/* ── Activity Screens ── */}
           <Stack.Screen name="DrinkWaterScreen"     component={DrinkWaterScreen} />
           <Stack.Screen name="Activities"           component={Activities} />
+          <Stack.Screen name="Steps"                component={StepsScreen} />
 
           {/* ── NEW: Recommendation & Search Screens ── */}
           <Stack.Screen name="FoodSearch"            component={FoodSearchScreen} />
           <Stack.Screen name="ExerciseRecommendation" component={ExerciseRecommendationScreen} />
           <Stack.Screen name="FoodRecommendation"    component={FoodRecommendationScreen} />
+          <Stack.Screen name="FoodDetail"             component={FoodDetailScreen} />
           <Stack.Screen name="Notifications"         component={NotificationsScreen} />
         </>
       )}

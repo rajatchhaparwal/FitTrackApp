@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { ScrollView, StyleSheet, Text, View, Dimensions, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, Dimensions, TouchableOpacity, ActivityIndicator, Switch, Platform, PermissionsAndroid } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { isStepCountingSupported, startStepCounterUpdate } from '@dongminyu/react-native-step-counter';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import auth from '@react-native-firebase/auth';
@@ -29,7 +30,7 @@ const getEmotionalGreeting = () => {
     ];
     return morningQuotes[dailyIndex % morningQuotes.length];
   }
-  
+
   if (hour >= 12 && hour < 17) {
     const afternoonQuotes = [
       "Consistency matters more than intensity.",
@@ -58,6 +59,127 @@ const Home = () => {
   const { userData, loading } = useUser();
   const [dietLog, setDietLog] = useState(null);
   const [fetchingLog, setFetchingLog] = useState(true);
+  const [stepsCount, setStepsCount] = useState(0);
+
+  // Refs for tracking sync logic
+  const lastSyncedStepsRef = React.useRef(0);
+  const lastSyncedTimeRef = React.useRef(0);
+
+  const syncStepsWithBackend = async (currentSteps) => {
+    try {
+      const user = auth().currentUser;
+      if (!user) return;
+
+      if (currentSteps <= lastSyncedStepsRef.current) {
+        return;
+      }
+
+      const now = Date.now();
+      const stepsDiff = currentSteps - lastSyncedStepsRef.current;
+      const timeDiff = now - lastSyncedTimeRef.current;
+
+      // Sync if steps changed by > 20, or if 30 seconds have passed
+      if (stepsDiff > 20 || timeDiff > 30000) {
+        lastSyncedStepsRef.current = currentSteps;
+        lastSyncedTimeRef.current = now;
+
+        const res = await fetch(`${api_call}/DietLog/steps`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'firebase-uid': user.uid,
+          },
+          body: JSON.stringify({ stepsCount: currentSteps }),
+        });
+        const data = await res.json();
+        if (data.success && data.data) {
+          setDietLog(data.data);
+        }
+      }
+    } catch (e) {
+      console.error("Error syncing steps to backend:", e);
+    }
+  };
+
+  const syncStepsWithBackendRef = React.useRef(syncStepsWithBackend);
+  useEffect(() => {
+    syncStepsWithBackendRef.current = syncStepsWithBackend;
+  });
+
+  // --- Step Counter Sensor Listener ---
+  useEffect(() => {
+    let active = true;
+    let subscription = null;
+
+    const setupStepCounter = async () => {
+      if (Platform.OS === 'android') {
+        try {
+          const hasPermission = await PermissionsAndroid.check(
+            PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION
+          );
+
+          let granted = hasPermission;
+          if (!hasPermission) {
+            const requestResult = await PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION,
+              {
+                title: "Activity Recognition Permission",
+                message: "FitTrack needs access to physical activity data to track your daily steps.",
+                buttonNeutral: "Ask Me Later",
+                buttonNegative: "Cancel",
+                buttonPositive: "OK"
+              }
+            );
+            granted = requestResult === PermissionsAndroid.RESULTS.GRANTED;
+          }
+
+          if (!granted && active) {
+            console.log("Activity recognition permission denied.");
+            return;
+          }
+        } catch (err) {
+          console.warn("Permission check error:", err);
+        }
+      }
+
+      try {
+        const support = await isStepCountingSupported();
+        if (support.supported && active) {
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+
+          subscription = startStepCounterUpdate(todayStart, (stepData) => {
+            if (active && stepData && typeof stepData.steps === 'number') {
+              setStepsCount(stepData.steps);
+              if (syncStepsWithBackendRef.current) {
+                syncStepsWithBackendRef.current(stepData.steps);
+              }
+            }
+          });
+        } else {
+          console.log("Step counting not supported on this device.");
+        }
+      } catch (err) {
+        console.error("Step counter initialization error:", err);
+      }
+    };
+
+    setupStepCounter();
+
+    return () => {
+      active = false;
+      try {
+        if (subscription && typeof subscription.remove === 'function') {
+          subscription.remove();
+        } else {
+          const { stopStepCounterUpdate } = require('@dongminyu/react-native-step-counter');
+          stopStepCounterUpdate();
+        }
+      } catch (e) {
+        console.log("Error cleaning up step counter:", e);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setupDefaultReminders().catch(e => console.log('Reminders setup error:', e));
@@ -76,6 +198,16 @@ const Home = () => {
           const data = await res.json();
           if (isActive && data.success && data.data) {
             setDietLog(data.data);
+            const dbSteps = data.data.stepsCount || 0;
+            if (dbSteps > 0) {
+              setStepsCount(prev => {
+                if (dbSteps > prev) {
+                  lastSyncedStepsRef.current = dbSteps;
+                  return dbSteps;
+                }
+                return prev;
+              });
+            }
           }
         } catch (e) {
           console.error("Error fetching diet log on home:", e);
@@ -98,15 +230,33 @@ const Home = () => {
 
   const dailyTotals = dietLog?.dailyTotals || {};
   const caloriesConsumed = Math.round(dailyTotals.calories || 0);
-  const proteinConsumed  = Math.round(dailyTotals.proteinG || 0);
-  const carbConsumed     = Math.round(dailyTotals.carbsG || 0);
-  const fatConsumed      = Math.round(dailyTotals.fatG || 0);
-  const waterConsumed    = Math.round(dietLog?.waterIntakeMl || 0);
+  const proteinConsumed = Math.round(dailyTotals.proteinG || 0);
+  const carbConsumed = Math.round(dailyTotals.carbsG || 0);
+  const fatConsumed = Math.round(dailyTotals.fatG || 0);
+  const waterConsumed = Math.round(dietLog?.waterIntakeMl || 0);
+
+  const TimeSpecificClickFunctionalityOnTodaysmealFoodSearch = () => {
+    const currentHour = new Date().getHours();
+    let mealType = 'Snacks';
+
+    if (currentHour >= 5 && currentHour < 11) {
+      mealType = 'Breakfast';       // 5:00 AM - 10:59 AM
+    } else if (currentHour >= 11 && currentHour < 16) {
+      mealType = 'Lunch';           // 11:00 AM - 3:59 PM
+    } else if (currentHour >= 16 && currentHour < 22) {
+      mealType = 'Dinner';          // 4:00 PM - 9:59 PM
+    } else {
+      mealType = 'Late Night Snack'; // 10:00 PM - 4:59 AM
+    }
+
+    return navigation.navigate('FoodSearch', { mealType });
+  };
+
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
         {/* ================= GREETING HEADER ================= */}
         <View style={styles.headerContainer}>
           <View style={styles.textColumn}>
@@ -116,8 +266,8 @@ const Home = () => {
             </Text>
           </View>
 
-          <TouchableOpacity 
-            style={styles.bellButton} 
+          <TouchableOpacity
+            style={styles.bellButton}
             activeOpacity={0.8}
             onPress={() => navigation.navigate('Notifications')}
           >
@@ -132,30 +282,32 @@ const Home = () => {
           <Text style={styles.sectionTitle}>Trending Workouts</Text>
         </View>
         <WhatToTrain data={{ WorkoutType: "Full Body Workout", WorkoutTime: "36", NumberOFExercises: "13" }} />
-        
+
         <Activities 
           navigation={navigation}
           caloriesConsumed={caloriesConsumed}
           waterConsumed={waterConsumed}
+          stepsCount={stepsCount}
         />
-        
-        <TodaysGoalCard 
-          workoutDone={0} 
-          workoutGoal={45} 
+
+        <TodaysGoalCard
+          workoutDone={0}
+          workoutGoal={45}
           caloriesConsumed={caloriesConsumed}
           proteinConsumed={proteinConsumed}
           carbConsumed={carbConsumed}
           fatConsumed={fatConsumed}
-          onAddFoodPress={() => navigation.navigate('FoodSearch', { mealType: 'Breakfast' })}
+          onAddFoodPress={() => TimeSpecificClickFunctionalityOnTodaysmealFoodSearch()}
         />
       </ScrollView>
     </SafeAreaView>
   );
 };
 
+
 const styles = StyleSheet.create({
   container: {
-    flex: 1, 
+    flex: 1,
     backgroundColor: '#F8FAFC',
   },
   center: {
@@ -174,12 +326,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   textColumn: {
-    flex: 1, 
+    flex: 1,
     flexDirection: 'column',
-    paddingRight: 16, 
+    paddingRight: 16,
   },
   greeting: {
-    fontFamily: 'Montserrat-Medium', 
+    fontFamily: 'Montserrat-Medium',
     fontSize: 14,
     color: '#64748B',
     letterSpacing: -0.1,
@@ -214,10 +366,10 @@ const styles = StyleSheet.create({
     right: 14,
     width: 8,
     height: 8,
-    backgroundColor: '#FF4B4B', 
+    backgroundColor: '#0066EE',
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: '#FFFFFF', 
+    borderColor: '#FFFFFF',
   },
   sectionHeader: {
     paddingHorizontal: width * 0.06,
@@ -226,7 +378,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: 'Montserrat-SemiBold', 
+    fontFamily: 'Montserrat-SemiBold',
     color: '#0F172A',
   }
 });

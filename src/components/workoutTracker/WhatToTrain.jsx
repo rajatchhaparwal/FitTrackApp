@@ -28,13 +28,13 @@ const navigation = useNavigation()
         <View style={styles.badgeRow}>
           <View style={styles.miniBadge}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Icon name="weight-lifter" size={14} color="#5566A5" />
+              <Icon name="weight-lifter" size={14} color="#0066EE" />
               <Text style={styles.badgeText}>{exercises} Exercises</Text>
             </View>
           </View>
-          <View style={[styles.miniBadge, { backgroundColor: 'rgba(255, 255, 255, 0.4)' }]}>
+          <View style={[styles.miniBadge, { backgroundColor: 'rgba(255, 255, 255, 0.5)' }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Icon name="clock-outline" size={14} color="#5566A5" />
+              <Icon name="clock-outline" size={14} color="#0066EE" />
               <Text style={styles.badgeText}>{duration} mins</Text>
             </View>
           </View>
@@ -76,9 +76,9 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
     // Soft organic card shadow
-    shadowColor: '#92A3FD',
+    shadowColor: '#0066EE',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.08,
     shadowRadius: 16,
     elevation: 3,
   },
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   workoutTitle: {
     fontFamily: 'Montserrat-Bold',
     fontSize: 20,               // Stronger, confident typographic sizing
-    color: '#1D212C', 
+    color: '#0F172A', 
     letterSpacing: -0.4,
     lineHeight: 24,
   },
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   miniBadge: {
-    backgroundColor: 'rgba(146, 163, 253, 0.15)',
+    backgroundColor: 'rgba(0, 102, 238, 0.08)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 11,
-    color: '#5566A5',
+    color: '#0066EE',
   },
   viewButton: {
     backgroundColor: '#FFFFFF',
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     borderRadius: 14, 
     alignSelf: 'flex-start',
     marginTop: 8,
-    shadowColor: '#000',
+    shadowColor: '#0066EE',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontFamily: 'Montserrat-Bold',
     fontSize: 11,
-    color: '#92A3FD', 
+    color: '#0066EE', 
     letterSpacing: 0.2,
   },
   imageWrapper: {

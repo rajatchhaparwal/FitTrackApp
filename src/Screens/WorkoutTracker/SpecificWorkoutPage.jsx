@@ -19,12 +19,14 @@ import api_call from '../../../api';
 import {
   getExerciseDetail,
   getPoseConfigForExercise,
-  parseTargetFromMetric,
 } from './data/exercisePoseConfigs';
 import { mapApiPoseConfig } from './utils/poseAnalyzer';
+import { useUser } from '../../../UserContext';
+import auth from '@react-native-firebase/auth';
 
 const SpecificWorkoutPage = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+  const { userData, setUserData } = useUser();
   const {
     exercise,
     workoutTitle,
@@ -33,16 +35,16 @@ const SpecificWorkoutPage = ({ navigation, route }) => {
     exerciseIndex,
   } = route.params ?? {};
 
-  const exerciseName = exercise?.name ?? 'Exercise';
-  const metric = exercise?.metric ?? 'x12';
+  // Database exercise object is populated in exercise.exercise_id
+  const exDetails = exercise?.exercise_id || {};
+  const exerciseName = exDetails.name ?? 'Exercise';
   const detail = getExerciseDetail(exerciseName);
-  const parsedTarget = parseTargetFromMetric(metric);
 
   const [poseConfig, setPoseConfig] = useState(getPoseConfigForExercise(exerciseName));
   const [loadingConfig, setLoadingConfig] = useState(false);
 
-  const targetReps = detail.targetReps ?? parsedTarget.targetReps ?? 12;
-  const targetDurationSec = detail.targetDurationSec ?? parsedTarget.targetDurationSec;
+  const targetReps = exercise?.reps || exDetails.sets_reps_default?.reps || detail.targetReps || 12;
+  const targetDurationSec = exercise?.duration_seconds || exDetails.sets_reps_default?.duration_seconds || detail.targetDurationSec;
   const supportsTracking = detail.supportsPoseTracking && poseConfig?.is_supported !== false;
 
   // Counter / Delay States
@@ -127,7 +129,7 @@ const SpecificWorkoutPage = ({ navigation, route }) => {
     });
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (hasNext) {
       const nextIdx = exerciseIndex + 1;
       const nextEx = workoutExercises[nextIdx];
@@ -139,6 +141,31 @@ const SpecificWorkoutPage = ({ navigation, route }) => {
         exerciseIndex: nextIdx,
       });
     } else {
+      // Last exercise -> Log workout to backend
+      try {
+        const user = auth().currentUser;
+        if (user) {
+          // Send request to POST /WorkoutTemplates/log
+          const totalDur = workoutExercises?.reduce((acc, curr) => acc + (curr.duration_seconds || 60), 0) / 60 || 15;
+          const res = await fetch(`${api_call}/WorkoutTemplates/log`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'firebase-uid': user.uid },
+            body: JSON.stringify({
+              durationMins: Math.round(totalDur),
+              workoutType: 'strength',
+              title: workoutTitle || 'Workout',
+              caloriesBurned: Math.round(totalDur * 5) // approx
+            })
+          });
+          const resData = await res.json();
+          if (resData.success && resData.stats) {
+            setUserData(prev => ({ ...prev, stats: resData.stats }));
+          }
+        }
+      } catch(e) {
+        console.error("Failed to log workout:", e);
+      }
+
       Alert.alert(
         '🏆 Workout Completed!',
         'Great job! You have completed all exercises in this workout session.',
@@ -181,7 +208,7 @@ const SpecificWorkoutPage = ({ navigation, route }) => {
           <View style={{ flex: 1, paddingRight: 10 }}>
             <Text style={styles.title}>{exerciseName}</Text>
             <Text style={styles.subtitle}>
-              {metric} • {detail.muscleGroup} • {detail.workoutType}
+              {targetDurationSec ? `00:${targetDurationSec}` : `x${targetReps}`} • {detail.muscleGroup || 'Full Body'} • {detail.workoutType || 'Strength'}
             </Text>
           </View>
           <TouchableOpacity style={styles.demoPill} onPress={watchDemo} activeOpacity={0.8}>

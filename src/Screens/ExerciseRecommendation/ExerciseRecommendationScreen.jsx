@@ -1,23 +1,21 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Image, StatusBar, ScrollView, TextInput,
+  Image, StatusBar, ScrollView, TextInput, ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useUser } from '../../../UserContext';
 import {
-  getPersonalizedWorkouts,
-  getExercisesByBodyPart,
-  searchExercises,
   BODY_PARTS,
   EXERCISE_TYPES,
 } from '../../services/exerciseRecommendation';
+import api_call from '../../../api';
 
 // ── Type badge colours ─────────────────────────────────────────────────────────
 const TYPE_COLOURS = {
-  strength:    { bg: '#EBF1FF', text: '#5A8BFF' },
-  cardio:      { bg: '#FFF0F0', text: '#E74C3C' },
+  strength: { bg: '#EBF1FF', text: '#5A8BFF' },
+  cardio: { bg: '#FFF0F0', text: '#E74C3C' },
   flexibility: { bg: '#F0FFF4', text: '#27AE60' },
 };
 
@@ -76,33 +74,70 @@ const EmptyExercises = () => (
 const ExerciseRecommendationScreen = ({ navigation }) => {
   const { userData } = useUser();
   const [selectedBodyPart, setSelectedBodyPart] = useState('All');
-  const [selectedType, setSelectedType]         = useState('All');
-  const [searchQuery, setSearchQuery]           = useState('');
+  const [selectedType, setSelectedType] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const [exercises, setExercises] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Compute exercises
-  const exercises = useMemo(() => {
-    if (searchQuery.trim().length > 0) {
-      return searchExercises(searchQuery);
-    }
-    if (selectedBodyPart === 'All' && selectedType === 'All') {
-      return getPersonalizedWorkouts(userData || {});
-    }
-    let list = getExercisesByBodyPart(selectedBodyPart === 'All' ? null : selectedBodyPart);
-    if (selectedType !== 'All') {
-      list = list.filter(e => e.type === selectedType);
-    }
-    return list;
-  }, [userData, selectedBodyPart, selectedType, searchQuery]);
+  // Dynamic exercise fetch based on selections
+  useEffect(() => {
+    let active = true;
+    const fetchList = async () => {
+      setLoading(true);
+      try {
+        let url = `${api_call}/Exercise?`;
+        if (selectedBodyPart !== 'All') {
+          url += `bodyPart=${encodeURIComponent(selectedBodyPart)}&`;
+        }
+        if (selectedType !== 'All') {
+          url += `type=${encodeURIComponent(selectedType)}&`;
+        }
+        if (searchQuery.trim().length > 0) {
+          url += `search=${encodeURIComponent(searchQuery)}&`;
+        }
+
+        const res = await fetch(url);
+        const data = await res.json();
+        if (active && Array.isArray(data)) {
+          setExercises(data);
+        }
+      } catch (e) {
+        console.error("Error fetching exercise data:", e);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchList();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedBodyPart, selectedType, searchQuery]);
 
   const goal = userData?.goal || 'General Fitness';
 
-  const handleExercisePress = (exercise) => {
-    navigation.navigate('AbsBeginnerScreen', {
-      workoutId: exercise.id,
-      name: exercise.name,
-      duration: exercise.duration ? `0 mins` : `${exercise.sets * 3} mins`,
-      totalExercises: 1,
-      imageUri: exercise.imageUri,
+  const handleExercisePress = (exerciseItem) => {
+    navigation.navigate('SpecificWorkoutPage', {
+      exercise: {
+        exercise_id: {
+          name: exerciseItem.name,
+          sets_reps_default: {
+            sets: exerciseItem.sets,
+            reps: exerciseItem.reps,
+            duration_seconds: exerciseItem.duration ? parseInt(exerciseItem.duration) : null,
+          }
+        },
+        imageUri: exerciseItem.imageUri,
+        emoji: exerciseItem.bodyPart === 'Abs' ? '🧘' : exerciseItem.bodyPart === 'Arm' ? '💪' : '🏋️',
+      },
+      workoutTitle: exerciseItem.name,
+      workoutId: null,
+      workoutExercises: null,
+      exerciseIndex: 0,
     });
   };
 
@@ -113,7 +148,7 @@ const ExerciseRecommendationScreen = ({ navigation }) => {
       {/* ── Header ── */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Icon name="arrow-left" size={24} color="#111" />
+          <Icon name="arrow-left" size={24} color="#0F172A" />
         </TouchableOpacity>
         <View style={styles.headerTextCol}>
           <Text style={styles.headerTitle}>Exercise Recommendations</Text>
@@ -170,7 +205,7 @@ const ExerciseRecommendationScreen = ({ navigation }) => {
                   style={[styles.chip, isActive && { backgroundColor: tc.bg, borderColor: tc.text }]}
                   onPress={() => setSelectedType(type)}
                 >
-                  <Text style={[styles.chipText, isActive && { color: tc.text, fontWeight: '700' }]}>
+                  <Text style={[styles.chipText, isActive && { color: tc.text }]}>
                     {type.charAt(0).toUpperCase() + type.slice(1)}
                   </Text>
                 </TouchableOpacity>
@@ -193,64 +228,76 @@ const ExerciseRecommendationScreen = ({ navigation }) => {
       </View>
 
       {/* ── List ── */}
-      <FlatList
-        data={exercises}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        contentContainerStyle={styles.grid}
-        columnWrapperStyle={styles.columnGap}
-        renderItem={({ item }) => (
-          <ExerciseCard item={item} onPress={handleExercisePress} />
-        )}
-        ListEmptyComponent={<EmptyExercises />}
-        keyboardShouldPersistTaps="handled"
-      />
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#0066EE" />
+          <Text style={{ marginTop: 12, color: '#64748B', fontFamily: 'Montserrat-Medium', fontSize: 14 }}>Loading exercises...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={exercises}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          contentContainerStyle={styles.grid}
+          columnWrapperStyle={styles.columnGap}
+          renderItem={({ item }) => (
+            <ExerciseCard item={item} onPress={handleExercisePress} />
+          )}
+          ListEmptyComponent={<EmptyExercises />}
+          keyboardShouldPersistTaps="handled"
+        />
+      )}
     </SafeAreaView>
   );
 };
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#FAFAFA' },
+  screen: { flex: 1, backgroundColor: '#F8FAFC' },
 
   header: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 12,
     backgroundColor: '#fff',
-    borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
+    borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
   },
   backBtn: { padding: 6, marginRight: 10 },
   headerTextCol: { flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#111' },
-  headerSub:   { fontSize: 12, color: '#999', marginTop: 1 },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
+  headerSub: { fontSize: 12, color: '#64748B', marginTop: 1 },
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center',
     margin: 14, paddingHorizontal: 14, height: 46,
     backgroundColor: '#fff', borderRadius: 14,
-    borderWidth: 1.5, borderColor: '#E8EEFF',
-    shadowColor: '#5A8BFF', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+    borderWidth: 1.5, borderColor: '#F1F5F9',
+    shadowColor: '#0066EE', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
   },
-  searchIcon:  { marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 15, color: '#222' },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, fontSize: 15, color: '#0F172A' },
 
-  chipsWrap: { paddingHorizontal: 14, paddingVertical: 8, gap: 8 },
+  chipsWrap: { paddingHorizontal: 14, paddingVertical: 8, gap: 8, alignItems: 'center' },
   chip: {
-    paddingHorizontal: 14, paddingVertical: 7,
-    borderRadius: 20, backgroundColor: '#F4F5F7',
-    borderWidth: 1.5, borderColor: 'transparent',
+    paddingHorizontal: 14,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 18,
+    backgroundColor: '#F4F5F7',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  chipActive: { backgroundColor: '#EBF1FF', borderColor: '#5A8BFF' },
-  chipText:   { fontSize: 13, color: '#777', fontWeight: '500' },
-  chipTextActive: { color: '#5A8BFF', fontWeight: '700' },
+  chipActive: { backgroundColor: '#EBF1FF', borderColor: '#0066EE' },
+  chipText: { fontSize: 13, color: '#64748B', fontWeight: '600', lineHeight: 16 },
+  chipTextActive: { color: '#0066EE' },
 
   sectionHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 16, marginBottom: 8,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#111' },
-  sectionCount: { fontSize: 12, color: '#999' },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
+  sectionCount: { fontSize: 12, color: '#64748B' },
 
   grid: { paddingHorizontal: 10, paddingBottom: 24 },
   columnGap: { gap: 10, marginBottom: 10 },

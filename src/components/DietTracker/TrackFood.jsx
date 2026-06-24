@@ -2,18 +2,22 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useUser } from '../../../UserContext';
 
 const userData = {
-    proteinConsumed: 45,
-    proteinGoal: 100,
-    carbConsumed: 120,
-    carbGoal: 300,
-    calorie:3100,
+    proteinConsumed: 0,
+    proteinGoal: 0,
+    carbConsumed: 0,
+    fatConsumed:0,
+    fatGoal:0,
+    carbGoal: 0,
+    calorie:0,
   };
 
   // 2. Logic tp Calculate the percentage strings
   const proteinPercent = `${(userData.proteinConsumed / userData.proteinGoal) * 100}%`;
   const carbPercent = `${(userData.carbConsumed / userData.carbGoal) * 100}%`;
+   const FatPercent = `${(userData.fatConsumed / userData.fatGoal) * 100}%`;
 
 const TrackFood = () => {
   const navigation = useNavigation();
@@ -44,8 +48,7 @@ const TrackFood = () => {
         <View style={styles.macroGrid}>
           <MacroBar label="Protein" percentage= {proteinPercent} />
           <MacroBar label="Carb" percentage={carbPercent} />
-          <MacroBar label="Fat" percentage="0%" />
-          <MacroBar label="Fibre" percentage="0%" />
+          <MacroBar label="Fat" percentage={FatPercent} />
         </View>
       </View>
       </TouchableOpacity>

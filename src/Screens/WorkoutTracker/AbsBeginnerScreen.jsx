@@ -17,25 +17,7 @@ const { height } = Dimensions.get('window');
 const HERO_HEIGHT = height * 0.40;
 const SHEET_OVERLAP = 24;
 
-// Global seed index of all potential exercises
-const EXERCISES_DATABASE = [
-  { id: 1,  name: 'Jumping Jacks',     category: 'Abs', metric: '00:20', bgColor: '#DCF0FA', emoji: '🙆‍♂️' },
-  { id: 2,  name: 'Abdominal Crunches', category: "Abs", metric: 'x16',   bgColor: '#D7F5E3', emoji: '🏋️'   },
-  { id: 3,  name: 'Russian Twist',      category: "Abs", metric: 'x20',   bgColor: '#FCE9D0', emoji: '🤸‍♂️' },
-  { id: 4,  name: 'Plank',              category: "Abs", metric: '00:30', bgColor: '#E8DCFA', emoji: '🧘‍♂️' },
-  { id: 5,  name: 'Leg Raises',         category: 'Arm', metric: 'x15',   bgColor: '#FAD7D7', emoji: '🦵'   },
-  { id: 6,  name: 'Mountain Climbers',  category: 'abs', metric: '00:20', bgColor: '#D7F5E3', emoji: '🏃‍♂️' },
-  { id: 7,  name: 'Bicycle Crunches',   category: 'abs', metric: 'x20',   bgColor: '#FCE9D0', emoji: '🚴‍♂️' },
-  { id: 8,  name: 'Flutter Kicks',      category: 'abs', metric: '00:20', bgColor: '#DCF0FA', emoji: '🦵'   },
-  { id: 9,  name: 'Reverse Crunches',   category: 'abs', metric: 'x15',   bgColor: '#FAD7EC', emoji: '💪'   },
-  { id: 10, name: 'Side Plank Left',    category: 'Arm', metric: '00:20', bgColor: '#E9FAD7', emoji: '🧍‍♂️' },
-  { id: 11, name: 'Side Plank Right',   category: "Abs", metric: '00:20', bgColor: '#DCF0FA', emoji: '🧍'   },
-  { id: 12, name: 'V-Ups',              category: 'abs', metric: 'x12',   bgColor: '#FCE9D0', emoji: '✌️'   },
-  { id: 13, name: 'Heel Touches',       category: 'abs', metric: 'x20',   bgColor: '#D7F5E3', emoji: '👆'   },
-  { id: 14, name: 'Dead Bug',           category: 'abs', metric: 'x10',   bgColor: '#FAD7D7', emoji: '🐛'   },
-  { id: 15, name: 'Bird Dog',           category: 'abs', metric: 'x10',   bgColor: '#E8DCFA', emoji: '🐾'   },
-  { id: 16, name: 'High Knees',         category: 'abs', metric: '00:20', bgColor: '#FCE9D0', emoji: '🏃‍♀️' },
-];
+import api_call from '../../../api';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -63,12 +45,14 @@ const DragHandle = () => (
 const ExerciseRow = ({ exercise, onPress }) => (
   <TouchableOpacity style={styles.exerciseRow} onPress={onPress} activeOpacity={0.75}>
     <DragHandle />
-    <View style={[styles.exerciseThumb, { backgroundColor: exercise.bgColor }]}>
-      <Text style={styles.exerciseEmoji}>{exercise.emoji}</Text>
+    <View style={[styles.exerciseThumb, { backgroundColor: exercise.bgColor || '#DCF0FA' }]}>
+      <Text style={styles.exerciseEmoji}>{exercise.emoji || '🏋️'}</Text>
     </View>
     <View style={styles.exerciseInfo}>
-      <Text style={styles.exerciseName}>{exercise.name}</Text>
-      <Text style={styles.exerciseMetric}>{exercise.metric}</Text>
+      <Text style={styles.exerciseName}>{exercise.exercise_id?.name || 'Exercise'}</Text>
+      <Text style={styles.exerciseMetric}>
+        {exercise.reps ? `x${exercise.reps}` : (exercise.duration_seconds ? `00:${exercise.duration_seconds.toString().padStart(2, '0')}` : 'x10')}
+      </Text>
     </View>
     <View style={styles.swapBtn}>
       <Icon name="chevron-right" size={24} color="#AAAAAA" />
@@ -80,22 +64,38 @@ const ExerciseRow = ({ exercise, onPress }) => (
 
 const AbsBeginnerScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+  const { name, duration, totalExercises, imageUri, workoutId } = route.params || {};
 
-  // Extract properties safely incoming from route parameters
-  const { name, duration, totalExercises, imageUri, categoryId, workoutId } = route.params || {};
+  const [routineData, setRoutineData] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchRoutine = async () => {
+      try {
+        const res = await fetch(`${api_call}/WorkoutTemplates/${workoutId}`);
+        const data = await res.json();
+        setRoutineData(data);
+      } catch (err) {
+        console.error('Error fetching routine:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (workoutId) fetchRoutine();
+    else setLoading(false);
+  }, [workoutId]);
 
   const openExerciseDetail = (exerciseItem, index) => {
     navigation.navigate('SpecificWorkoutPage', {
       exercise: exerciseItem,
       workoutTitle: name,
       workoutId,
-      workoutExercises: displayWorkoutData,
+      workoutExercises: routineData?.exercises_sequence || [],
       exerciseIndex: index,
     });
   };
 
-  // Filter from base array using clean logic safely matching criteria tag
-  const displayWorkoutData = EXERCISES_DATABASE.filter(ex => ex.category === categoryId);
+  const displayWorkoutData = routineData?.exercises_sequence || [];
 
   return (
     <View style={styles.container}>
@@ -157,7 +157,7 @@ const AbsBeginnerScreen = ({ navigation, route }) => {
           </View>
 
           {displayWorkoutData.map((exerciseItem, index) => (
-            <React.Fragment key={exerciseItem.id}>
+            <React.Fragment key={exerciseItem._id || index}>
               <ExerciseRow
                 exercise={exerciseItem}
                 onPress={() => openExerciseDetail(exerciseItem, index)}

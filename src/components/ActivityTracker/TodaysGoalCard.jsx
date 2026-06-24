@@ -39,7 +39,7 @@ const TodaysGoalCard = ({
       required: fatGoal,
       label: 'Fat',
       percent: Math.min(Math.round((fatConsumed / fatGoal) * 100), 100),
-      color: '#29B6F6'
+      color: '#89B0FF'
     },
   };
 

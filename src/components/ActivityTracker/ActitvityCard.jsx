@@ -21,7 +21,7 @@ const ActivityCard = ({
   const navigation = useNavigation();
   
   const cardBg = bgcolor || '#FFFFFF';
-  const themeColor = iconcolor || '#F5F5F5';
+  const themeColor = iconcolor ? `${iconcolor}1A` : '#F0F4FF';
 
   return (
     <View style={[styles.card, { backgroundColor: cardBg }]}>
@@ -33,91 +33,90 @@ const ActivityCard = ({
         {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.typeText} numberOfLines={2}>
-          {type}
-        </Text>
-
-        <View
-          style={[
-            styles.iconContainer,
-            { backgroundColor: themeColor },
-          ]}
-        >
-          <Icon name={icon} size={20} color={iconcolor || '#5A8BFF'} />
-        </View>
-      </View>
-
-      {/* Bottom */}
-      <View style={styles.bottomSection}>
-        {/* Value */}
-        <View style={styles.valueRow}>
-          <Text style={styles.valueText}>
-          {unit === "steps" || unit === "glasses" || unit === "cal"? `${trackValue}/${value}`: value}
+            {type}
           </Text>
 
-          {unit && (
-            <Text style={styles.unitText}>
-              {unit}
-            </Text>
-          )}
-          
+          <View
+            style={[
+              styles.iconContainer,
+              { backgroundColor: themeColor },
+            ]}
+          >
+            <Icon name={icon} size={20} color={iconcolor || '#0066EE'} />
+          </View>
         </View>
 
-        {/* Dynamic UI */}
-        {variant === 'calorie' && (
-  <>
-    <View style={styles.calorieRow}>
-
-      <View style={styles.calorieBackground}>
-        <View
-          style={[
-            styles.calorieFill,
-            {
-              width: `${progress}%`,
-            },
-          ]}
-        />
-      </View>
-
-      <Text style={styles.caloriePercent}>
-        {progress}%
-      </Text>
-
-    </View>
-
-    <Text style={styles.calorieText}>
-      Daily goal reached
-    </Text>
-  </>
-)}
-
-        {variant === 'bar' && (
-          <>
-            <View style={styles.progressBackground}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${progress}%`,
-                    backgroundColor: progressColor,
-                  },
-                ]}
-              />
-            </View>
-
-            <Text style={styles.progressText}>
-              {progress}% completed
+        {/* Bottom */}
+        <View style={styles.bottomSection}>
+          {/* Value */}
+          <View style={styles.valueRow}>
+            <Text style={styles.valueText}>
+              {unit === "steps" || unit === "glasses" || unit === "cal"? `${trackValue}/${value}`: value}
             </Text>
-          </>
-        )}
 
-        {variant === 'Workout' && (
-          <View style={styles.pulseContainer}>
-            <Text>Active Time</Text>
-            <View style={styles.pulseRow}></View>
+            {unit && (
+              <Text style={styles.unitText}>
+                {unit}
+              </Text>
+            )}
           </View>
-        )}
 
-      </View>
+          {/* Dynamic UI */}
+          {variant === 'calorie' && (
+            <>
+              <View style={styles.calorieRow}>
+                <View style={styles.calorieBackground}>
+                  <View
+                    style={[
+                      styles.calorieFill,
+                      {
+                        width: `${progress}%`,
+                      },
+                    ]}
+                  />
+                </View>
+
+                <Text style={styles.caloriePercent}>
+                  {progress}%
+                </Text>
+              </View>
+
+              <Text style={styles.calorieText}>
+                Daily goal reached
+              </Text>
+            </>
+          )}
+
+          {variant === 'bar' && (
+            <>
+              <View style={styles.progressBackground}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${progress}%`,
+                      backgroundColor: progressColor || '#0066EE',
+                    },
+                  ]}
+                />
+              </View>
+
+              <Text style={styles.progressText}>
+                {progress}% completed
+              </Text>
+            </>
+          )}
+
+          {variant === 'Workout' && (
+            <View style={styles.pulseContainer}>
+              <Text style={styles.workoutLabel}>Active Time</Text>
+              <View style={styles.pulseRow}>
+                <View style={styles.pulseDot} />
+                <Text style={styles.liveText}>Tracked</Text>
+              </View>
+            </View>
+          )}
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -132,12 +131,14 @@ const styles = StyleSheet.create({
     marginRight: 12,
     marginBottom: 12,
     justifyContent: 'space-between',
-
     backgroundColor: '#FFF',
-
-    borderColor:'#000',
-    borderWidth:0,
-    elevation:1,
+    borderColor: '#F1F5F9',
+    borderWidth: 1,
+    shadowColor: '#0066EE',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
   },
 
   headerRow: {
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
   typeText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#2D3142',
+    color: '#0F172A',
     lineHeight: 18,
     flex: 1,
     marginRight: 8,
@@ -177,13 +178,13 @@ const styles = StyleSheet.create({
   valueText: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111111',
+    color: '#0F172A',
   },
 
   unitText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#9B9EAC',
+    color: '#64748B',
     marginLeft: 4,
   },
 
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
   calorieBackground: {
     flex: 1,
     height: 10,
-    backgroundColor: '#FFE7DE',
+    backgroundColor: '#F0F4FF',
     borderRadius: 20,
     overflow: 'hidden',
     marginRight: 8,
@@ -203,27 +204,28 @@ const styles = StyleSheet.create({
   
   calorieFill: {
     height: '100%',
-    backgroundColor: '#FF7A45',
+    backgroundColor: '#0066EE',
     borderRadius: 20,
   },
   
   caloriePercent: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FF7A45',
+    color: '#0066EE',
   },
   
   calorieText: {
     marginTop: 6,
     fontSize: 11,
-    color: '#9B9EAC',
+    color: '#64748B',
     fontWeight: '500',
   },
+  
   // Progress Bar
   progressBackground: {
     width: '100%',
     height: 8,
-    backgroundColor: '#ECECEC',
+    backgroundColor: '#F1F5F9',
     borderRadius: 20,
     overflow: 'hidden',
   },
@@ -237,12 +239,19 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 11,
     fontWeight: '500',
-    color: '#9B9EAC',
+    color: '#64748B',
   },
 
-  // Heart Rate UI
+  // Heart Rate UI / Workout UI
   pulseContainer: {
     marginTop: 2,
+  },
+
+  workoutLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+    marginBottom: 4,
   },
 
   pulseRow: {
@@ -251,24 +260,17 @@ const styles = StyleSheet.create({
   },
 
   pulseDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#FF4D6D',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#0066EE',
     marginRight: 6,
   },
 
   liveText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#FF4D6D',
-  },
-
-  heartStatus: {
-    marginTop: 6,
-    fontSize: 11,
-    color: '#9B9EAC',
-    fontWeight: '500',
+    color: '#0066EE',
   },
 });
 

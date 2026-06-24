@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
   View, TextInput, StyleSheet, TouchableOpacity,
-  FlatList, Text, ActivityIndicator, Keyboard,
+  FlatList, Text, ActivityIndicator, Keyboard, TouchableWithoutFeedback,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -147,11 +147,11 @@ const SearchBar = ({
         onPress={() => handleResultPress(item)}
         activeOpacity={0.7}
       >
-        <View style={[styles.resultIcon, { backgroundColor: isFood ? '#FFF3E0' : '#EBF1FF' }]}>
+        <View style={[styles.resultIcon, { backgroundColor: '#EBF1FF' }]}>
           <Icon
             name={isFood ? 'food-apple' : 'dumbbell'}
             size={16}
-            color={isFood ? '#E67E22' : '#5A8BFF'}
+            color={isFood ? '#0066EE' : '#5A8BFF'}
           />
         </View>
         <View style={styles.resultTextCol}>
@@ -164,44 +164,52 @@ const SearchBar = ({
               : `${item.bodyPart} • ${item.type}`}
           </Text>
         </View>
-        <Icon name="chevron-right" size={16} color="#CCC" />
+        <Icon name="chevron-right" size={16} color="#B4C2D3" />
       </TouchableOpacity>
     );
   };
 
   const showDropdown = focused && (results.length > 0 || loading) && query.length > 0;
 
+  const focusInput = () => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
   return (
     <View style={styles.wrapper}>
       {/* ── Input Row ── */}
-      <View 
-        style={[styles.searchSection, focused && styles.searchSectionFocused]}
-      >
-        <TextInput
-          ref={inputRef}
-          style={styles.input}
-          placeholder={placeholder}
-          placeholderTextColor="#999"
-          value={query}
-          onChangeText={handleChangeText}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setTimeout(() => setFocused(false), 200)}
-          onSubmitEditing={handleSearchSubmit}
-          returnKeyType="search"
-          underlineColorAndroid="transparent"
-        />
-        {loading ? (
-          <ActivityIndicator size="small" color="#5A8BFF" style={styles.rightWidget} />
-        ) : query.length > 0 ? (
-          <TouchableOpacity style={styles.rightWidget} onPress={clearSearch}>
-            <Icon name="close-circle" size={18} color="#CCC" />
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.searchBtn} onPress={handleSearchSubmit}>
-            <Icon name="magnify" size={22} color="#5a8bff" />
-          </TouchableOpacity>
-        )}
-      </View>
+      <TouchableWithoutFeedback onPress={focusInput}>
+        <View 
+          style={[styles.searchSection, focused && styles.searchSectionFocused]}
+        >
+          <TextInput
+            ref={inputRef}
+            style={styles.input}
+            placeholder={placeholder}
+            placeholderTextColor="#999"
+            value={query}
+            onChangeText={handleChangeText}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setTimeout(() => setFocused(false), 300)}
+            onSubmitEditing={handleSearchSubmit}
+            returnKeyType="search"
+            underlineColorAndroid="transparent"
+          />
+          {loading ? (
+            <ActivityIndicator size="small" color="#5A8BFF" style={styles.rightWidget} />
+          ) : query.length > 0 ? (
+            <TouchableOpacity style={styles.rightWidget} onPress={clearSearch}>
+              <Icon name="close-circle" size={18} color="#CCC" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.searchBtn} onPress={handleSearchSubmit}>
+              <Icon name="magnify" size={22} color="#5a8bff" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </TouchableWithoutFeedback>
 
       {/* ── Dropdown Suggestions ── */}
       {showDropdown && (
@@ -222,7 +230,9 @@ const SearchBar = ({
 const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: 20,
+    position: 'relative',
     zIndex: 100,
+    elevation: 5,
   },
   searchSection: {
     flexDirection: 'row',
@@ -237,11 +247,6 @@ const styles = StyleSheet.create({
   searchSectionFocused: {
     backgroundColor: '#fff',
     borderColor: '#5A8BFF',
-    shadowColor: '#5A8BFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 3,
   },
   input: {
     flex: 1,
@@ -300,8 +305,8 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   resultTextCol: { flex: 1 },
-  resultName: { fontSize: 14, fontWeight: '600', color: '#111' },
-  resultSub:  { fontSize: 11, color: '#999', marginTop: 1 },
+  resultName: { fontSize: 14, fontWeight: '600', color: '#0F172A' },
+  resultSub:  { fontSize: 11, color: '#64748B', marginTop: 1 },
 });
 
 export default SearchBar;

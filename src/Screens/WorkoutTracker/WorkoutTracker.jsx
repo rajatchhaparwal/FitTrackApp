@@ -1,4 +1,4 @@
-import React, { useEffect, useState, memo } from 'react';
+import React, { useEffect, useState, memo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import api_call from '../../../api';
 import { RowWorkoutCard, PortraitSquareCard, PromoBannerCard } from './DiscoverWorkouts';
 import { useUser } from '../../../UserContext';
 import { getPersonalizedWorkouts } from '../../services/exerciseRecommendation';
+import { useFocusEffect } from '@react-navigation/native';
+import auth from '@react-native-firebase/auth';
 
 const { width } = Dimensions.get('window');
 const BODY_FOCUS_CATEGORIES = ['Abs', 'Arm', 'Chest', 'Leg', 'Shoulder'];
@@ -98,6 +100,22 @@ const RoutineCard = memo(({ routine, navigation }) => {
 
 // ─── MAIN SCREEN COMPONENT ───────────────────────────────────────────────────
 
+// ─── EXPLICIT OBJECT MODULE SAMPLE DATASETS ───────────────────────────
+const MOCK_BEGINNER_CARDS = [
+  { id: "WK_ABS_01", title: "Core Basics", duration: "10 mins", exercises: 8, imageUri: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=200" },
+  { id: "WK_ARM_01", title: "Light Arms", duration: "12 mins", exercises: 10, imageUri: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=200" },
+  { id: "WK_LEG_01", title: "Easy Squats", duration: "15 mins", exercises: 9, imageUri: "https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=200" },
+];
+
+const MOCK_PROMO_BANNER = {
+  imageUri: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600"
+};
+
+const MOCK_RECOMMENDED_ROWS = [
+  { id: "WK_ABS_01", title: "Quick HIIT Starter", subtext: "10 mins • Beginner", imageUri: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=150" },
+  { id: "WK_ARM_01", title: "Core Sculpt Express", subtext: "12 mins • Intermediate", imageUri: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=150" },
+];
+
 const WorkoutTracker = ({ navigation }) => {
   const { userData } = useUser();
   const [selectedBodyFocus, setSelectedBodyFocus] = useState('Abs');
@@ -105,23 +123,69 @@ const WorkoutTracker = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Personalised exercise recommendations from user profile
-  const recommendedExercises = getPersonalizedWorkouts(userData || {}).slice(0, 3);
+  // Calendar and history states
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [workoutHistory, setWorkoutHistory] = useState([]);
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(new Date());
 
-  useEffect(() => {
-    const fetchWorkoutRoutines = async () => {
-      try {
-        const response = await axios.get(`${api_call}/WorkoutTemplates`);
-        setWorkoutTemplates(Array.isArray(response.data) ? response.data : []);
-      } catch (err) {
-        console.log("Fetch Error targeting workout templates:", err);
-        setWorkoutTemplates(MOCK_ROUTINES_FALLBACK);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchWorkoutRoutines();
-  }, []);
+  // Personalised exercise recommendations from user profile
+  const [recommendedExercises, setRecommendedExercises] = useState([]);
+
+  // Fetch routines and history on screen focus
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      const fetchData = async () => {
+        try {
+          const user = auth().currentUser;
+          if (!user) return;
+
+          // 1. Fetch templates
+          const response = await axios.get(`${api_call}/WorkoutTemplates`);
+          if (active) {
+            setWorkoutTemplates(Array.isArray(response.data) ? response.data : []);
+          }
+
+          // 2. Fetch workout history
+          const historyRes = await fetch(`${api_call}/WorkoutTemplates/history`, {
+            headers: { 'firebase-uid': user.uid }
+          });
+          const historyData = await historyRes.json();
+          if (active && historyData.success && historyData.data) {
+            setWorkoutHistory(historyData.data);
+          }
+
+          // 3. Fetch recommended exercises based on user's goal
+          const userGoal = (userData?.goal || '').toLowerCase();
+          let bodyPartFilter = 'All';
+          if (userGoal.includes('chest')) bodyPartFilter = 'Chest';
+          else if (userGoal.includes('arm')) bodyPartFilter = 'Arm';
+          else if (userGoal.includes('leg')) bodyPartFilter = 'Leg';
+          else if (userGoal.includes('core') || userGoal.includes('abs')) bodyPartFilter = 'Abs';
+          else if (userGoal.includes('back')) bodyPartFilter = 'Back';
+
+          const recRes = await fetch(`${api_call}/Exercise?bodyPart=${bodyPartFilter}`);
+          const recData = await recRes.json();
+          if (active && Array.isArray(recData)) {
+            setRecommendedExercises(recData.slice(0, 3));
+          }
+        } catch (err) {
+          console.log("Error loading workout templates, history & recommendations:", err);
+        } finally {
+          if (active) {
+            setLoading(false);
+          }
+        }
+      };
+
+      fetchData();
+
+      return () => {
+        active = false;
+      };
+    }, [userData])
+  );
 
   if (loading) {
     return (
@@ -132,13 +196,140 @@ const WorkoutTracker = ({ navigation }) => {
     );
   }
 
-  // Filter middle items based on chosen active body focus pill tab selection
+  // Filter middle items based on active focus chip
   const filteredRoutines = workoutTemplates.filter(routine => 
     routine.category_id?.toString().toLowerCase().includes(selectedBodyFocus.toLowerCase()) ||
     routine.title?.toString().toLowerCase().includes(selectedBodyFocus.toLowerCase())
   );
 
   const displayedRoutines = filteredRoutines.slice(0, 3);
+
+  // Calendar render helpers
+  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+
+  const renderCalendar = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    const totalDays = getDaysInMonth(year, month);
+    const firstDay = getFirstDayOfMonth(year, month);
+
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+
+    const dayLabels = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+    const gridItems = [];
+    for (let i = 0; i < firstDay; i++) {
+      gridItems.push({ type: 'empty', id: `empty-${i}` });
+    }
+    for (let day = 1; day <= totalDays; day++) {
+      const date = new Date(year, month, day);
+      const dateStr = date.toISOString().split('T')[0];
+
+      const dayLogs = workoutHistory.filter(log => {
+        const logDateStr = new Date(log.date).toISOString().split('T')[0];
+        return logDateStr === dateStr;
+      });
+
+      gridItems.push({
+        type: 'day',
+        day,
+        date,
+        dateStr,
+        hasWorkout: dayLogs.length > 0,
+        logs: dayLogs
+      });
+    }
+
+    const prevMonth = () => {
+      setCurrentDate(new Date(year, month - 1, 1));
+    };
+
+    const nextMonth = () => {
+      setCurrentDate(new Date(year, month + 1, 1));
+    };
+
+    return (
+      <View style={styles.calendarCard}>
+        <View style={styles.calendarHeader}>
+          <Text style={styles.calendarTitle}>{monthNames[month]} {year}</Text>
+          <View style={styles.calendarNavRow}>
+            <TouchableOpacity onPress={prevMonth} style={styles.navArrow}>
+              <Icon name="chevron-left" size={20} color="#0066EE" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={nextMonth} style={styles.navArrow}>
+              <Icon name="chevron-right" size={20} color="#0066EE" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.weekLabelsRow}>
+          {dayLabels.map((lbl, idx) => (
+            <Text key={idx} style={styles.weekLabel}>{lbl}</Text>
+          ))}
+        </View>
+
+        <View style={styles.daysGrid}>
+          {gridItems.map((item, idx) => {
+            if (item.type === 'empty') {
+              return <View key={item.id} style={styles.dayCellEmpty} />;
+            }
+
+            const isSelected = selectedCalendarDate &&
+              selectedCalendarDate.getDate() === item.day &&
+              selectedCalendarDate.getMonth() === month &&
+              selectedCalendarDate.getFullYear() === year;
+
+            return (
+              <TouchableOpacity
+                key={idx}
+                activeOpacity={0.8}
+                onPress={() => setSelectedCalendarDate(item.date)}
+                style={[
+                  styles.dayCell,
+                  isSelected && styles.dayCellSelected,
+                  item.hasWorkout && !isSelected && styles.dayCellHasWorkout
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.dayCellText,
+                    isSelected && styles.dayCellTextSelected,
+                    item.hasWorkout && !isSelected && styles.dayCellTextHasWorkout
+                  ]}
+                >
+                  {item.day}
+                </Text>
+                {item.hasWorkout && (
+                  <View style={[
+                    styles.workoutDot,
+                    isSelected && styles.workoutDotSelected
+                  ]} />
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
+  const selectedDateStr = selectedCalendarDate.toISOString().split('T')[0];
+  const selectedDayLogs = workoutHistory.filter(log => {
+    const logDateStr = new Date(log.date).toISOString().split('T')[0];
+    return logDateStr === selectedDateStr;
+  });
+
+  const formatActiveTime = (mins) => {
+    if (!mins) return "0m";
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -177,10 +368,51 @@ const WorkoutTracker = ({ navigation }) => {
 
             {/* 2. Quick Stat Pills */}
             <View style={styles.statsRow}>
-              <StatPill icon="fire" value="1,240" label="kcal burned" bgcolor="#FFF3E0" iconcolor="#E67E22" />
-              <StatPill icon="clock-outline" value="3h 20m" label="active time" bgcolor="#EBF1FF" iconcolor="#5A8BFF" />
-              <StatPill icon="trophy-outline" value="12" label="completed" bgcolor="#EAF7EE" iconcolor="#2ECC71" />
+              <StatPill 
+                icon="fire" 
+                value={String(Math.round(userData?.stats?.total_calories_burned || 0))} 
+                label="kcal burned" 
+                bgcolor="#FFF3E0" 
+                iconcolor="#E67E22" 
+              />
+              <StatPill 
+                icon="clock-outline" 
+                value={formatActiveTime(userData?.stats?.total_workout_minutes || 0)} 
+                label="active time" 
+                bgcolor="#EBF1FF" 
+                iconcolor="#5A8BFF" 
+              />
+              <StatPill 
+                icon="trophy-outline" 
+                value={String(userData?.stats?.total_workouts || 0)} 
+                label="completed" 
+                bgcolor="#EAF7EE" 
+                iconcolor="#2ECC71" 
+              />
             </View>
+
+            {/* 2b. Interactive Calendar Section */}
+            {renderCalendar()}
+
+            {/* 2c. Log display list */}
+            {selectedDayLogs.length > 0 ? (
+              <View style={styles.selectedLogsContainer}>
+                <Text style={styles.logsSectionTitle}>Workouts on {selectedCalendarDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+                {selectedDayLogs.map((log, idx) => (
+                  <View key={log._id || idx} style={styles.logItemCard}>
+                    <Icon name="check-circle" size={18} color="#2ECC71" style={{ marginRight: 8 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.logItemTitle}>{log.title || 'Workout'}</Text>
+                      <Text style={styles.logItemMeta}>{log.durationMins || 0} mins • {log.workoutType} • {log.summary?.totalCaloriesBurned || 0} kcal</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.noLogsContainer}>
+                <Text style={styles.noLogsText}>No workouts recorded on this day.</Text>
+              </View>
+            )}
 
             {/* 3. Challenge Banner */}
             <ScrollView 
@@ -279,9 +511,23 @@ const WorkoutTracker = ({ navigation }) => {
                 key={ex.id}
                 style={styles.recExCard}
                 activeOpacity={0.85}
-                onPress={() => navigation.navigate('AbsBeginnerScreen', {
-                  workoutId: ex.id, name: ex.name,
-                  duration: `${ex.sets * 3} mins`, totalExercises: 1, imageUri: ex.imageUri
+                onPress={() => navigation.navigate('SpecificWorkoutPage', {
+                  exercise: {
+                    exercise_id: {
+                      name: ex.name,
+                      sets_reps_default: {
+                        sets: ex.sets,
+                        reps: ex.reps ? parseInt(ex.reps) : null,
+                        duration_seconds: ex.duration ? parseInt(ex.duration) : null,
+                      }
+                    },
+                    imageUri: ex.imageUri,
+                    emoji: ex.bodyPart === 'Abs' ? '🧘' : ex.bodyPart === 'Arm' ? '💪' : '🏋️',
+                  },
+                  workoutTitle: ex.name,
+                  workoutId: null,
+                  workoutExercises: null,
+                  exerciseIndex: 0,
                 })}
               >
                 <Image source={{ uri: ex.imageUri }} style={styles.recExImage} />
@@ -463,29 +709,155 @@ const styles = StyleSheet.create({
   recExMeta:  { fontSize: 11, color: '#999', textTransform: 'capitalize' },
   recExRow:   { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
   recExKcal:  { fontSize: 11, color: '#FF5A5A' },
+  calendarCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    marginHorizontal: 20,
+    marginTop: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#0066EE',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.02,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  calendarTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    fontFamily: 'Montserrat-Bold',
+  },
+  calendarNavRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  navArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  weekLabelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  weekLabel: {
+    width: (width - 72) / 7,
+    textAlign: 'center',
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: 8,
+  },
+  dayCellEmpty: {
+    width: (width - 72) / 7,
+    height: 34,
+  },
+  dayCell: {
+    width: (width - 72) / 7,
+    height: 34,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 17,
+    position: 'relative',
+  },
+  dayCellSelected: {
+    backgroundColor: '#0066EE',
+  },
+  dayCellHasWorkout: {
+    backgroundColor: '#F0F4FF',
+  },
+  dayCellText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  dayCellTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  dayCellTextHasWorkout: {
+    color: '#0066EE',
+    fontWeight: '700',
+  },
+  workoutDot: {
+    position: 'absolute',
+    bottom: 3,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#0066EE',
+  },
+  workoutDotSelected: {
+    backgroundColor: '#FFFFFF',
+  },
+  selectedLogsContainer: {
+    marginHorizontal: 20,
+    marginTop: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  logsSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+  },
+  logItemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 8,
+  },
+  logItemTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  logItemMeta: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+    textTransform: 'capitalize',
+  },
+  noLogsContainer: {
+    marginHorizontal: 20,
+    marginTop: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 20,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  noLogsText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
 });
-
-// ─── EXPLICIT OBJECT OBJECT MODULE SAMPLE DATASETS ───────────────────────────
-
-const MOCK_BEGINNER_CARDS = [
-  { id: "BG_ABS_01", title: "Core Basics", duration: "10 mins", exercises: 8, imageUri: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=200" },
-  { id: "BG_ARM_01", title: "Light Arms", duration: "12 mins", exercises: 10, imageUri: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=200" },
-  { id: "BG_LEG_01", title: "Easy Squats", duration: "15 mins", exercises: 9, imageUri: "https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=200" },
-];
-
-const MOCK_PROMO_BANNER = {
-  imageUri: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600"
-};
-
-const MOCK_RECOMMENDED_ROWS = [
-  { id: "REC_HIIT_01", title: "Quick HIIT Starter", subtext: "10 mins • Beginner", imageUri: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=150" },
-  { id: "REC_CORE_02", title: "Core Sculpt Express", subtext: "12 mins • Intermediate", imageUri: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=150" },
-];
-
-const MOCK_ROUTINES_FALLBACK = [
-  { workout_id: "WK_ABS_01", category_id: "Abs", title: "Abs Shredder", total_duration_minutes: 15, difficulty_rating: 1, last_played_date: "Apr 15", thumbnail_image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=150", exercises_sequence: Array(16).fill(0) },
-  { workout_id: "WK_ARM_01", category_id: "Arm", title: "Bicep Blaster Extreme", total_duration_minutes: 20, difficulty_rating: 2, last_played_date: "May 2", thumbnail_image: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=150", exercises_sequence: Array(12).fill(0) },
-  { workout_id: "WK_ABS_02", category_id: "Abs", title: "Six Pack Circuit", total_duration_minutes: 18, difficulty_rating: 3, last_played_date: "Yesterday", thumbnail_image: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=150", exercises_sequence: Array(20).fill(0) }
-];
 
 export default WorkoutTracker;

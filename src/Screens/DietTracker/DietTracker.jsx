@@ -61,12 +61,12 @@ const DietTracker = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
 
   // Pull from user profile, fall back to sensible defaults
-  const calorieGoal   = parseInt(userData?.calorie_goal  || 2000, 10);
-  const proteinGoal   = Math.round(calorieGoal * 0.30 / 4);
-  const carbGoal      = Math.round(calorieGoal * 0.40 / 4);
-  const fatGoal       = Math.round(calorieGoal * 0.30 / 9);
+  const calorieGoal   =  userData?.personalPlan?.dailyCalories || 2000;
+  const proteinGoal   = userData?.personalPlan?.proteinGrams || 75;
+  const carbGoal      = userData?.personalPlan?.carbGrams || 275;
+  const fatGoal       = userData?.personalPlan?.fatGrams || 61;
 
-  useFocusEffect(
+  useFocusEffect( 
     useCallback(() => {
       let isActive = true;
       const fetchLog = async () => {

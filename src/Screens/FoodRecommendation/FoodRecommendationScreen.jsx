@@ -1,14 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, StatusBar, ActivityIndicator, Alert,
+  StatusBar, ActivityIndicator, Alert, TextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import auth from '@react-native-firebase/auth';
 import api_call from '../../../api';
 import { useUser } from '../../../UserContext';
-import { getFoodRecommendations, getMealPlan } from '../../services/foodRecommendation';
 
 // ── Tag pill ──────────────────────────────────────────────────────────────────
 const Tag = ({ label }) => (
@@ -17,32 +16,21 @@ const Tag = ({ label }) => (
   </View>
 );
 
-// ── Macro Bar ─────────────────────────────────────────────────────────────────
-const MacroBar = ({ label, value, goal, color }) => {
-  const pct = Math.min((value / (goal || 1)) * 100, 100);
-  return (
-    <View style={styles.macroItem}>
-      <View style={styles.macroLabelRow}>
-        <Text style={styles.macroLabel}>{label}</Text>
-        <Text style={styles.macroValue}>{value}g</Text>
-      </View>
-      <View style={styles.macroTrack}>
-        <View style={[styles.macroFill, { width: `${pct}%`, backgroundColor: color }]} />
-      </View>
-    </View>
-  );
-};
 
-// ── Food Recommendation Card ───────────────────────────────────────────────────
-const FoodRecCard = ({ food, onAdd }) => (
-  <TouchableOpacity activeOpacity={0.85} style={styles.foodCard}>
-    <Image source={{ uri: food.imageUri }} style={styles.foodImage} />
+
+// ── Plan Recommendation Card (navigates to detail for quantity) ──────────────
+const FoodRecCard = ({ food, mealKey, navigation }) => (
+  <TouchableOpacity
+    activeOpacity={0.85}
+    style={styles.foodCard}
+    onPress={() => navigation.navigate('FoodDetail', { food, defaultMealType: mealKey || 'breakfast' })}
+  >
+    <View style={styles.foodIconBadge}>
+      <Icon name="food-variant" size={26} color="#0066EE" />
+    </View>
     <View style={styles.foodInfo}>
-      <Text style={styles.foodName} numberOfLines={1}>{food.name}</Text>
-      <Text style={styles.foodServing}>{food.servingSize}</Text>
-      <View style={styles.foodTagsRow}>
-        {food.tags.slice(0, 2).map(t => <Tag key={t} label={t} />)}
-      </View>
+      <Text style={styles.foodName} numberOfLines={2}>{food.name}</Text>
+      <Text style={styles.foodServing} numberOfLines={1}>{food.servingSize || 'Per 100g'}</Text>
       <View style={styles.foodMacrosRow}>
         <Text style={styles.foodMacro}>P: {food.protein}g</Text>
         <Text style={styles.foodMacro}>C: {food.carbs}g</Text>
@@ -52,15 +40,45 @@ const FoodRecCard = ({ food, onAdd }) => (
     <View style={styles.foodRight}>
       <Text style={styles.foodCal}>{food.calories}</Text>
       <Text style={styles.foodCalLabel}>kcal</Text>
-      <TouchableOpacity style={styles.addBtn} onPress={() => onAdd(food)}>
-        <Icon name="plus" size={16} color="#fff" />
-      </TouchableOpacity>
+      <View style={styles.addBtn}>
+        <Icon name="chevron-right" size={18} color="#fff" />
+      </View>
     </View>
   </TouchableOpacity>
 );
 
-// ── Meal Section ──────────────────────────────────────────────────────────────
-const MealSection = ({ title, iconName, foods, onAdd }) => (
+// ── Browse / Search Card (chevron navigates to detail) ──────────────────────
+const SearchFoodCard = ({ food, navigation }) => (
+  <TouchableOpacity
+    activeOpacity={0.85}
+    style={styles.foodCard}
+    onPress={() => navigation.navigate('FoodDetail', { food, defaultMealType: 'breakfast' })}
+  >
+    <View style={styles.foodIconBadge}>
+      <Icon name="food-fork-drink" size={26} color="#5A8BFF" />
+    </View>
+    <View style={styles.foodInfo}>
+      <Text style={styles.foodName} numberOfLines={2}>{food.name}</Text>
+      {food.brand ? <Text style={[styles.foodServing, { color: '#94A3B8' }]}>{food.brand}</Text> : null}
+      <Text style={styles.foodServing} numberOfLines={1}>{food.servingSize || 'Per 100g'}</Text>
+      <View style={styles.foodMacrosRow}>
+        <Text style={styles.foodMacro}>P: {food.protein}g</Text>
+        <Text style={styles.foodMacro}>C: {food.carbs}g</Text>
+        <Text style={styles.foodMacro}>F: {food.fat}g</Text>
+      </View>
+    </View>
+    <View style={styles.foodRight}>
+      <Text style={styles.foodCal}>{food.calories}</Text>
+      <Text style={styles.foodCalLabel}>kcal</Text>
+      <View style={[styles.addBtn, { backgroundColor: '#5A8BFF' }]}>
+        <Icon name="chevron-right" size={18} color="#fff" />
+      </View>
+    </View>
+  </TouchableOpacity>
+);
+
+// ── Meal Section ───────────────────────────────────────────────────
+const MealSection = ({ title, iconName, mealKey, foods, navigation }) => (
   <View style={styles.mealSection}>
     <View style={styles.mealSectionHeader}>
       <Icon name={iconName} size={20} color="#0066EE" style={{ marginRight: 6 }} />
@@ -68,7 +86,7 @@ const MealSection = ({ title, iconName, foods, onAdd }) => (
       <View style={styles.mealSectionLine} />
     </View>
     {foods.map(food => (
-      <FoodRecCard key={food.id} food={food} onAdd={onAdd} />
+      <FoodRecCard key={food.id} food={food} mealKey={mealKey} navigation={navigation} />
     ))}
   </View>
 );
@@ -87,18 +105,61 @@ const FoodRecommendationScreen = ({ navigation }) => {
     { key: 'snacks', label: 'Snacks', iconName: 'food-apple' },
   ];
 
-  const mealPlan = useMemo(() => getMealPlan(userData || {}), [userData]);
+  const [mealPlan, setMealPlan] = useState(null);
+  const [browseFoods, setBrowseFoods] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searching, setSearching] = useState(false);
 
-  const browseFoods = useMemo(
-    () => getFoodRecommendations(userData || {}, selectedMeal),
-    [userData, selectedMeal]
-  );
+  useEffect(() => {
+    let isActive = true;
+    const fetchPlan = async () => {
+      try {
+        setLoading(true);
+        const user = auth().currentUser;
+        if (!user) return;
+
+        const headers = { 'firebase-uid': user.uid };
+        const planRes = await fetch(`${api_call}/food-recommendation/plan`, { headers });
+        const planData = await planRes.json();
+        
+        if (isActive && planData.success) {
+          setMealPlan(planData.data);
+        }
+      } catch (e) {
+        console.error("Error fetching food plan:", e);
+      } finally {
+        if (isActive) setLoading(false);
+      }
+    };
+    fetchPlan();
+    return () => { isActive = false; };
+  }, []); // Only fetch plan on mount
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    try {
+      setSearching(true);
+      const res = await fetch(`${api_call}/food/search?q=${encodeURIComponent(searchQuery)}`);
+      const data = await res.json();
+      if (data.results) {
+        setBrowseFoods(data.results);
+      } else {
+        setBrowseFoods([]);
+      }
+    } catch (e) {
+      console.error("Error searching foods:", e);
+      Alert.alert('Error', 'Could not search foods.');
+    } finally {
+      setSearching(false);
+    }
+  };
 
   const goal      = userData?.goal || 'General Fitness';
-  const calGoal   = parseInt(userData?.calorie_goal || 2000, 10);
-  const protGoal  = Math.round(calGoal * 0.3 / 4);
-  const carbGoal  = Math.round(calGoal * 0.4 / 4);
-  const fatGoal   = Math.round(calGoal * 0.3 / 9);
+  const calGoal   = userData?.personalPlan?.dailyCalories || 2000;
+  const protGoal  = userData?.personalPlan?.proteinGrams || 75;
+  const carbGoal  = userData?.personalPlan?.carbGrams || 275;
+  const fatGoal   = userData?.personalPlan?.fatGrams || 61;
 
   const handleAdd = async (food) => {
     try {
@@ -132,7 +193,7 @@ const FoodRecommendationScreen = ({ navigation }) => {
       const resData = await response.json();
       if (response.ok && resData.success) {
         Alert.alert(
-          '✅ Added!',
+          'Added!',
           `${food.name} (${Math.round(food.calories)} kcal) added to your log`,
           [{ text: 'OK' }]
         );
@@ -195,61 +256,57 @@ const FoodRecommendationScreen = ({ navigation }) => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-
-        {activeTab === 'plan' ? (
+        {loading ? (
+          <View style={{ marginTop: 40, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#0066EE" />
+          </View>
+        ) : activeTab === 'plan' && mealPlan ? (
           <>
-            {/* ── Daily Totals Card ── */}
-            <View style={styles.totalsCard}>
-              <Text style={styles.totalsTitle}>Today's Plan</Text>
-              <View style={styles.totalsCalRow}>
-                <Icon name="fire" size={22} color="#0066EE" />
-                <Text style={styles.totalsCal}>{mealPlan.totals.calories}</Text>
-                <Text style={styles.totalsGoal}> / {calGoal} kcal</Text>
-              </View>
-              <View style={styles.macrosBarsWrap}>
-                <MacroBar label="Protein" value={mealPlan.totals.protein} goal={protGoal} color="#0066EE" />
-                <MacroBar label="Carbs"   value={mealPlan.totals.carbs}   goal={carbGoal} color="#5A8BFF" />
-                <MacroBar label="Fat"     value={mealPlan.totals.fat}     goal={fatGoal}  color="#29B6F6" />
-              </View>
-            </View>
-
             {/* ── Meal Sections ── */}
-            <MealSection title="Breakfast" iconName="weather-sunset" foods={mealPlan.breakfast} onAdd={handleAdd} />
-            <MealSection title="Lunch"     iconName="weather-sunny" foods={mealPlan.lunch}     onAdd={handleAdd} />
-            <MealSection title="Dinner"    iconName="weather-night" foods={mealPlan.dinner}    onAdd={handleAdd} />
-            <MealSection title="Snacks"    iconName="food-apple" foods={mealPlan.snacks}    onAdd={handleAdd} />
+            <MealSection title="Breakfast" iconName="weather-sunset" mealKey="breakfast" foods={mealPlan.breakfast || []} navigation={navigation} />
+            <MealSection title="Lunch"     iconName="weather-sunny"  mealKey="lunch"     foods={mealPlan.lunch || []}      navigation={navigation} />
+            <MealSection title="Dinner"    iconName="weather-night"  mealKey="dinner"    foods={mealPlan.dinner || []}     navigation={navigation} />
+            <MealSection title="Snacks"    iconName="food-apple"     mealKey="snacks"    foods={mealPlan.snacks || []}     navigation={navigation} />
           </>
         ) : (
           <>
-            {/* ── Meal filter tabs ── */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.mealTabsWrap}>
-              {MEAL_TABS.map(tab => (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={[styles.mealTab, selectedMeal === tab.key && styles.mealTabActive]}
-                  onPress={() => setSelectedMeal(tab.key)}
-                  activeOpacity={0.8}
-                >
-                  <Icon
-                    name={tab.iconName}
-                    size={16}
-                    color={selectedMeal === tab.key ? '#0066EE' : '#64748B'}
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text style={[styles.mealTabText, selectedMeal === tab.key && styles.mealTabTextActive]}>
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            {/* ── Search Bar ── */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 15 }}>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 15, height: 48, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2 }}>
+                <Icon name="magnify" size={20} color="#94A3B8" />
+                <TextInput
+                  style={{ flex: 1, marginLeft: 10, fontSize: 15, color: '#1E293B' }}
+                  placeholder="Search FatSecret database..."
+                  placeholderTextColor="#94A3B8"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  onSubmitEditing={handleSearch}
+                  returnKeyType="search"
+                />
+              </View>
+              <TouchableOpacity onPress={handleSearch} style={{ marginLeft: 10, backgroundColor: '#0066EE', paddingHorizontal: 20, height: 48, borderRadius: 12, justifyContent: 'center' }}>
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Search</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* ── Food List ── */}
-            <View style={styles.browseList}>
-              {browseFoods.map(food => (
-                <FoodRecCard key={food.id} food={food} onAdd={handleAdd} />
-              ))}
-            </View>
+            {searching ? (
+              <View style={{ marginTop: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#0066EE" />
+              </View>
+            ) : (
+              <View style={styles.browseList}>
+                {browseFoods.length === 0 && searchQuery ? (
+                   <Text style={{ textAlign: 'center', color: '#64748B', marginTop: 20 }}>No results found</Text>
+                ) : browseFoods.length === 0 ? (
+                   <Text style={{ textAlign: 'center', color: '#64748B', marginTop: 20 }}>Search to find new foods</Text>
+                ) : (
+                  browseFoods.map(food => (
+                    <SearchFoodCard key={food.id} food={food} navigation={navigation} />
+                  ))
+                )}
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -323,13 +380,16 @@ const styles = StyleSheet.create({
   foodCard: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#fff', marginHorizontal: 20, marginBottom: 12,
-    borderRadius: 20, overflow: 'hidden', padding: 14,
+    borderRadius: 20, padding: 14,
     borderWidth: 1, borderColor: '#F1F5F9',
     shadowColor: '#0066EE', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02, shadowRadius: 6, elevation: 1,
+    shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
   },
-  foodImage:    { width: 70, height: 70, borderRadius: 12 },
-  foodInfo:     { flex: 1, paddingHorizontal: 12, gap: 3 },
+  foodIconBadge: {
+    width: 56, height: 56, borderRadius: 16,
+    backgroundColor: '#EEF4FF', justifyContent: 'center', alignItems: 'center',
+  },
+  foodInfo:     { flex: 1, paddingHorizontal: 12, gap: 4 },
   foodName:     { fontSize: 14, fontWeight: '700', color: '#0F172A' },
   foodServing:  { fontSize: 11, color: '#64748B' },
   foodTagsRow:  { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginVertical: 2 },
