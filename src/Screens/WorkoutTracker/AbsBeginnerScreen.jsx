@@ -138,16 +138,7 @@ const AbsBeginnerScreen = ({ navigation, route }) => {
             <StatCard value={String(totalExercises || displayWorkoutData.length)} label="Exercises" />
           </View>
 
-          <TouchableOpacity style={styles.coachRow} activeOpacity={0.7}>
-            <Text style={styles.coachLabel}>Coach Video</Text>
-            <View style={styles.coachRight}>
-              <View style={styles.coachAvatar}>
-                <Text style={styles.coachAvatarEmoji}>🧍‍♂️</Text>
-              </View>
-              <Icon name="chevron-right" size={22} color="#AAAAAA" />
-            </View>
-          </TouchableOpacity>
-
+         
           <View style={styles.exercisesHeader}>
             <Text style={styles.exercisesLabel}>Exercises</Text>
             <TouchableOpacity activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center' }}>

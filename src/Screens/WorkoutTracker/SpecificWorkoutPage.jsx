@@ -45,23 +45,31 @@ const SpecificWorkoutPage = ({ navigation, route }) => {
 
   const targetReps = exercise?.reps || exDetails.sets_reps_default?.reps || detail.targetReps || 12;
   const targetDurationSec = exercise?.duration_seconds || exDetails.sets_reps_default?.duration_seconds || detail.targetDurationSec;
-  const supportsTracking = detail.supportsPoseTracking && poseConfig?.is_supported !== false;
+  // QuickPose SDK supports all exercises (at minimum with body overlay)
+  const supportsTracking = true;
 
   // Counter / Delay States
   const [prepareCount, setPrepareCount] = useState(3);
   const [timeLeft, setTimeLeft] = useState(targetDurationSec || 0);
   const [elapsedSec, setElapsedSec] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPaused, setIsPaused] = useState(true); // Start paused — user must press play
   const [isCompletedState, setIsCompletedState] = useState(false);
+
+  // Format seconds as MM:SS
+  const formatTime = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+  };
 
   const hasNext = workoutExercises && exerciseIndex !== undefined && exerciseIndex < workoutExercises.length - 1;
 
   useEffect(() => {
-    // Reset states on exercise change
+    // Reset states on exercise change — keep paused so user starts intentionally
     setPrepareCount(3);
     setTimeLeft(targetDurationSec || 0);
     setElapsedSec(0);
-    setIsPaused(false);
+    setIsPaused(true);
     setIsCompletedState(false);
   }, [exerciseName, targetDurationSec]);
 
@@ -110,10 +118,9 @@ const SpecificWorkoutPage = ({ navigation, route }) => {
   }, [detail.exerciseId, poseConfig?.exercise_id]);
 
   const startLiveTracking = () => {
-    navigation.navigate('LivePoseDetection', {
+    navigation.navigate('QuickPoseLiveScreen', {
       exerciseName,
       exerciseId: detail.exerciseId ?? poseConfig?.exercise_id,
-      poseConfig,
       targetReps: targetDurationSec ? null : targetReps,
       targetDurationSec,
       workoutTitle: workoutTitle ?? exerciseName,
@@ -169,7 +176,7 @@ const SpecificWorkoutPage = ({ navigation, route }) => {
       Alert.alert(
         '🏆 Workout Completed!',
         'Great job! You have completed all exercises in this workout session.',
-        [{ text: 'Finish', onPress: () => navigation.navigate('Home') }]
+        [{ text: 'Finish', onPress: () => navigation.navigate('WorkoutTracker') }]
       );
     }
   };
@@ -227,32 +234,31 @@ const SpecificWorkoutPage = ({ navigation, route }) => {
           </View>
           <View style={styles.timerDisplayRow}>
             <Text style={styles.timerValue}>
-              {prepareCount > 0 
-                ? `00:0${prepareCount}` 
-                : targetDurationSec 
-                  ? `00:${timeLeft < 10 ? '0' + timeLeft : timeLeft}`
-                  : `00:${elapsedSec < 10 ? '0' + elapsedSec : elapsedSec}`
+              {prepareCount > 0
+                ? formatTime(prepareCount)
+                : targetDurationSec
+                  ? formatTime(timeLeft)
+                  : formatTime(elapsedSec)
               }
             </Text>
             <View style={styles.timerControls}>
-              <TouchableOpacity 
-                style={[styles.timerControlBtn, prepareCount > 0 && { opacity: 0.5 }]} 
-                onPress={() => setIsPaused(!isPaused)}
-                disabled={prepareCount > 0}
+              <TouchableOpacity
+                style={styles.timerControlBtn}
+                onPress={() => setIsPaused(prev => !prev)}
               >
-                <Icon 
-                  name={isPaused ? 'play' : 'pause'} 
-                  size={18} 
+                <Icon
+                  name={isPaused ? 'play' : 'pause'}
+                  size={18}
                   color="#0066EE"
                 />
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.timerControlBtn} 
+              <TouchableOpacity
+                style={styles.timerControlBtn}
                 onPress={() => {
                   if (targetDurationSec) setTimeLeft(targetDurationSec);
                   else setElapsedSec(0);
                   setPrepareCount(3);
-                  setIsPaused(false);
+                  setIsPaused(true); // Pause after reset — user re-starts manually
                   setIsCompletedState(false);
                 }}
               >
@@ -260,8 +266,11 @@ const SpecificWorkoutPage = ({ navigation, route }) => {
               </TouchableOpacity>
             </View>
           </View>
-          {prepareCount > 0 && (
+          {prepareCount > 0 && !isPaused && (
             <Text style={styles.prepareText}>Starting in {prepareCount}s...</Text>
+          )}
+          {isPaused && prepareCount === 3 && (
+            <Text style={styles.prepareText}>Press ▶ to begin</Text>
           )}
         </View>
 

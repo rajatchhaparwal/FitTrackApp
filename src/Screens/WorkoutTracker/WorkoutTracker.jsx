@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -18,7 +17,6 @@ import axios from 'axios';
 import api_call from '../../../api';
 import { RowWorkoutCard, PortraitSquareCard, PromoBannerCard } from './DiscoverWorkouts';
 import { useUser } from '../../../UserContext';
-import { getPersonalizedWorkouts } from '../../services/exerciseRecommendation';
 import { useFocusEffect } from '@react-navigation/native';
 import auth from '@react-native-firebase/auth';
 
@@ -77,14 +75,14 @@ const RoutineCard = memo(({ routine, navigation }) => {
       <View style={styles.routineDetailsGroup}>
         <Text style={styles.routineMainTitle}>{name}</Text>
         <Text style={styles.routineSubtext}>{duration} mins • {totalExercises} Exercises</Text>
-        
+
         <View style={styles.intensityContainer}>
           {[1, 2, 3].map((boltIndex) => (
-            <Icon 
+            <Icon
               key={boltIndex}
-              name="flash" 
-              size={14} 
-              color={boltIndex <= difficultyRating ? "#5A8BFF" : "#E0E0E0"} 
+              name="flash"
+              size={14}
+              color={boltIndex <= difficultyRating ? "#5A8BFF" : "#E0E0E0"}
               style={styles.boltIcon}
             />
           ))}
@@ -100,7 +98,6 @@ const RoutineCard = memo(({ routine, navigation }) => {
 
 // ─── MAIN SCREEN COMPONENT ───────────────────────────────────────────────────
 
-// ─── EXPLICIT OBJECT MODULE SAMPLE DATASETS ───────────────────────────
 const MOCK_BEGINNER_CARDS = [
   { id: "WK_ABS_01", title: "Core Basics", duration: "10 mins", exercises: 8, imageUri: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=200" },
   { id: "WK_ARM_01", title: "Light Arms", duration: "12 mins", exercises: 10, imageUri: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=200" },
@@ -121,17 +118,14 @@ const WorkoutTracker = ({ navigation }) => {
   const [selectedBodyFocus, setSelectedBodyFocus] = useState('Abs');
   const [workoutTemplates, setWorkoutTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Calendar and history states
   const [currentDate, setCurrentDate] = useState(new Date());
   const [workoutHistory, setWorkoutHistory] = useState([]);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(new Date());
 
-  // Personalised exercise recommendations from user profile
   const [recommendedExercises, setRecommendedExercises] = useState([]);
 
-  // Fetch routines and history on screen focus
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -141,14 +135,19 @@ const WorkoutTracker = ({ navigation }) => {
           const user = auth().currentUser;
           if (!user) return;
 
+          const now = new Date();
+          if (active) {
+            setCurrentDate(now);
+          }
+
           // 1. Fetch templates
           const response = await axios.get(`${api_call}/WorkoutTemplates`);
           if (active) {
             setWorkoutTemplates(Array.isArray(response.data) ? response.data : []);
           }
 
-          // 2. Fetch workout history
-          const historyRes = await fetch(`${api_call}/WorkoutTemplates/history`, {
+          // 2. Fetch workout history (use cache-busting timestamp to fix logs not updating)
+          const historyRes = await fetch(`${api_call}/WorkoutTemplates/history?_t=${Date.now()}`, {
             headers: { 'firebase-uid': user.uid }
           });
           const historyData = await historyRes.json();
@@ -196,133 +195,76 @@ const WorkoutTracker = ({ navigation }) => {
     );
   }
 
-  // Filter middle items based on active focus chip
-  const filteredRoutines = workoutTemplates.filter(routine => 
+  const filteredRoutines = workoutTemplates.filter(routine =>
     routine.category_id?.toString().toLowerCase().includes(selectedBodyFocus.toLowerCase()) ||
     routine.title?.toString().toLowerCase().includes(selectedBodyFocus.toLowerCase())
   );
 
   const displayedRoutines = filteredRoutines.slice(0, 3);
 
-  // Calendar render helpers
-  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
-
+  // ─── Calendar Render (7-day Strip) ───
   const renderCalendar = () => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-
-    const totalDays = getDaysInMonth(year, month);
-    const firstDay = getFirstDayOfMonth(year, month);
-
-    const monthNames = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
-    ];
-
-    const dayLabels = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
-    const gridItems = [];
-    for (let i = 0; i < firstDay; i++) {
-      gridItems.push({ type: 'empty', id: `empty-${i}` });
+    // Generate 7 days (6 before, today)
+    const dates = [];
+    for (let i = -6; i <= 0; i++) {
+      const d = new Date(currentDate);
+      d.setDate(d.getDate() + i);
+      dates.push(d);
     }
-    for (let day = 1; day <= totalDays; day++) {
-      const date = new Date(year, month, day);
-      const dateStr = date.toISOString().split('T')[0];
-
-      const dayLogs = workoutHistory.filter(log => {
-        const logDateStr = new Date(log.date).toISOString().split('T')[0];
-        return logDateStr === dateStr;
-      });
-
-      gridItems.push({
-        type: 'day',
-        day,
-        date,
-        dateStr,
-        hasWorkout: dayLogs.length > 0,
-        logs: dayLogs
-      });
-    }
-
-    const prevMonth = () => {
-      setCurrentDate(new Date(year, month - 1, 1));
-    };
-
-    const nextMonth = () => {
-      setCurrentDate(new Date(year, month + 1, 1));
-    };
 
     return (
-      <View style={styles.calendarCard}>
-        <View style={styles.calendarHeader}>
-          <Text style={styles.calendarTitle}>{monthNames[month]} {year}</Text>
-          <View style={styles.calendarNavRow}>
-            <TouchableOpacity onPress={prevMonth} style={styles.navArrow}>
-              <Icon name="chevron-left" size={20} color="#0066EE" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={nextMonth} style={styles.navArrow}>
-              <Icon name="chevron-right" size={20} color="#0066EE" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.weekLabelsRow}>
-          {dayLabels.map((lbl, idx) => (
-            <Text key={idx} style={styles.weekLabel}>{lbl}</Text>
-          ))}
-        </View>
-
-        <View style={styles.daysGrid}>
-          {gridItems.map((item, idx) => {
-            if (item.type === 'empty') {
-              return <View key={item.id} style={styles.dayCellEmpty} />;
-            }
-
-            const isSelected = selectedCalendarDate &&
-              selectedCalendarDate.getDate() === item.day &&
-              selectedCalendarDate.getMonth() === month &&
-              selectedCalendarDate.getFullYear() === year;
+      <View style={styles.calendarStripContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
+          {dates.map((date, index) => {
+            const isSelected = selectedCalendarDate.getDate() === date.getDate() && 
+                               selectedCalendarDate.getMonth() === date.getMonth() && 
+                               selectedCalendarDate.getFullYear() === date.getFullYear();
+            
+            const hasWorkout = workoutHistory.some(log => {
+              const logDate = new Date(log.date || log.createdAt);
+              return logDate.getDate() === date.getDate() && 
+                     logDate.getMonth() === date.getMonth() && 
+                     logDate.getFullYear() === date.getFullYear();
+            });
 
             return (
-              <TouchableOpacity
-                key={idx}
+              <TouchableOpacity 
+                key={index} 
                 activeOpacity={0.8}
-                onPress={() => setSelectedCalendarDate(item.date)}
+                onPress={() => setSelectedCalendarDate(date)}
                 style={[
-                  styles.dayCell,
+                  styles.dayCell, 
                   isSelected && styles.dayCellSelected,
-                  item.hasWorkout && !isSelected && styles.dayCellHasWorkout
+                  hasWorkout && !isSelected && styles.dayCellHasWorkout
                 ]}
               >
-                <Text
-                  style={[
-                    styles.dayCellText,
-                    isSelected && styles.dayCellTextSelected,
-                    item.hasWorkout && !isSelected && styles.dayCellTextHasWorkout
-                  ]}
-                >
-                  {item.day}
+                <Text style={[styles.dayCellName, isSelected && styles.dayCellTextSelected]}>
+                  {date.toLocaleDateString('en-US', { weekday: 'short' })}
                 </Text>
-                {item.hasWorkout && (
-                  <View style={[
-                    styles.workoutDot,
-                    isSelected && styles.workoutDotSelected
-                  ]} />
+                <Text style={[styles.dayCellText, isSelected && styles.dayCellTextSelected]}>
+                  {date.getDate()}
+                </Text>
+                {hasWorkout && (
+                  <View style={[styles.workoutDot, isSelected && styles.workoutDotSelected]} />
                 )}
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
       </View>
     );
   };
 
-  const selectedDateStr = selectedCalendarDate.toISOString().split('T')[0];
   const selectedDayLogs = workoutHistory.filter(log => {
-    const logDateStr = new Date(log.date).toISOString().split('T')[0];
-    return logDateStr === selectedDateStr;
+    const logDate = new Date(log.date || log.createdAt);
+    return logDate.getDate() === selectedCalendarDate.getDate() && 
+           logDate.getMonth() === selectedCalendarDate.getMonth() && 
+           logDate.getFullYear() === selectedCalendarDate.getFullYear();
   });
+
+  const selectedDayCalories = selectedDayLogs.reduce((acc, log) => acc + (log.summary?.totalCaloriesBurned || log.caloriesBurned || 0), 0);
+  const selectedDayMins = selectedDayLogs.reduce((acc, log) => acc + (log.durationMins || 0), 0);
+  const selectedDayWorkoutsCount = selectedDayLogs.length;
 
   const formatActiveTime = (mins) => {
     if (!mins) return "0m";
@@ -334,29 +276,26 @@ const WorkoutTracker = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      
+
       <FlatList
-        data={displayedRoutines} 
+        data={displayedRoutines}
         keyExtractor={(item) => item.workout_id}
         renderItem={({ item }) => (
-          <RoutineCard 
+          <RoutineCard
             navigation={navigation}
-            routine={item} 
+            routine={item}
           />
         )}
         contentContainerStyle={styles.flatListContent}
-        
-        // ─── LIST HEADER COMPONENT ───
+
         ListHeaderComponent={() => (
           <View>
-            {/* 1. App Header */}
             <View style={styles.header}>
               <View style={styles.textColumn}>
-                <Text style={styles.greetingSubheading}>HOME WORKOUT</Text>
+                <Text style={styles.greetingSubheading}>Ready to train, {userData?.firstName || userData?.goal || 'Athlete'}</Text>
               </View>
             </View>
 
-            {/* 1b. Exercise Search Bar */}
             <TouchableOpacity
               style={styles.exerciseSearchBar}
               activeOpacity={0.8}
@@ -366,35 +305,36 @@ const WorkoutTracker = ({ navigation }) => {
               <Text style={styles.exerciseSearchPlaceholder}>Search exercises...</Text>
             </TouchableOpacity>
 
-            {/* 2. Quick Stat Pills */}
             <View style={styles.statsRow}>
-              <StatPill 
-                icon="fire" 
-                value={String(Math.round(userData?.stats?.total_calories_burned || 0))} 
-                label="kcal burned" 
-                bgcolor="#FFF3E0" 
-                iconcolor="#E67E22" 
+              <StatPill
+                icon="fire"
+                value={String(Math.round(selectedDayCalories))}
+                label="kcal burned"
+                bgcolor="#FFF3E0"
+                iconcolor="#E67E22"
               />
-              <StatPill 
-                icon="clock-outline" 
-                value={formatActiveTime(userData?.stats?.total_workout_minutes || 0)} 
-                label="active time" 
-                bgcolor="#EBF1FF" 
-                iconcolor="#5A8BFF" 
+              <StatPill
+                icon="clock-outline"
+                value={formatActiveTime(selectedDayMins)}
+                label="active time"
+                bgcolor="#EBF1FF"
+                iconcolor="#5A8BFF"
               />
-              <StatPill 
-                icon="trophy-outline" 
-                value={String(userData?.stats?.total_workouts || 0)} 
-                label="completed" 
-                bgcolor="#EAF7EE" 
-                iconcolor="#2ECC71" 
+              <StatPill
+                icon="trophy-outline"
+                value={String(selectedDayWorkoutsCount)}
+                label="completed"
+                bgcolor="#EAF7EE"
+                iconcolor="#2ECC71"
               />
             </View>
 
-            {/* 2b. Interactive Calendar Section */}
+            {/* 7-Day Calendar Strip */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.innerSectionTitle}>Your Activity</Text>
+            </View>
             {renderCalendar()}
 
-            {/* 2c. Log display list */}
             {selectedDayLogs.length > 0 ? (
               <View style={styles.selectedLogsContainer}>
                 <Text style={styles.logsSectionTitle}>Workouts on {selectedCalendarDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
@@ -414,17 +354,16 @@ const WorkoutTracker = ({ navigation }) => {
               </View>
             )}
 
-            {/* 3. Challenge Banner */}
-            <ScrollView 
-              horizontal 
+            <ScrollView
+              horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.challengeCarouselPadding}
             >
               <View style={styles.challengeHeroCard}>
-                <Image 
-                  source={{ uri: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=500&auto=format&fit=crop&q=60' }} 
-                  style={styles.challengeImageBg} 
+                <Image
+                  source={{ uri: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=500&auto=format&fit=crop&q=60' }}
+                  style={styles.challengeImageBg}
                 />
                 <View style={styles.challengeOverlayGradient}>
                   <Text style={styles.challengeDurationTag}>28 DAYS</Text>
@@ -437,7 +376,6 @@ const WorkoutTracker = ({ navigation }) => {
               </View>
             </ScrollView>
 
-            {/* 4. For Beginners Dynamic Carousel Section */}
             <View style={{ marginTop: 10 }}>
               <Text style={styles.subHeading}>For Beginners</Text>
               <ScrollView
@@ -446,7 +384,7 @@ const WorkoutTracker = ({ navigation }) => {
                 contentContainerStyle={styles.portraitCardScrollGap}
               >
                 {MOCK_BEGINNER_CARDS.map((card) => (
-                  <PortraitSquareCard 
+                  <PortraitSquareCard
                     key={card.id}
                     title={card.title}
                     imageUri={card.imageUri}
@@ -462,7 +400,6 @@ const WorkoutTracker = ({ navigation }) => {
               </ScrollView>
             </View>
 
-            {/* 5. Horizontal Body Focus Chips */}
             <Text style={styles.subHeading}>Body Focus</Text>
             <ScrollView
               horizontal
@@ -479,7 +416,6 @@ const WorkoutTracker = ({ navigation }) => {
               ))}
             </ScrollView>
 
-            {/* 6. Active Focus Filter Subheading Info */}
             <View style={styles.sectionHeader}>
               <Text style={styles.innerSectionTitle}>{selectedBodyFocus} Routines</Text>
               <Text style={styles.sectionCount}>{displayedRoutines.length} items listed</Text>
@@ -491,7 +427,6 @@ const WorkoutTracker = ({ navigation }) => {
           <View style={{ paddingBottom: 40 }}>
             <View style={styles.footerSpacing} />
 
-            {/* 7. Exercise Recommendation Banner */}
             <TouchableOpacity
               style={styles.recBanner}
               activeOpacity={0.85}
@@ -505,7 +440,6 @@ const WorkoutTracker = ({ navigation }) => {
               <Icon name="chevron-right" size={22} color="rgba(255,255,255,0.8)" />
             </TouchableOpacity>
 
-            {/* 8. Top 3 personalised exercises */}
             {recommendedExercises.map((ex) => (
               <TouchableOpacity
                 key={ex.id}
@@ -543,7 +477,6 @@ const WorkoutTracker = ({ navigation }) => {
               </TouchableOpacity>
             ))}
 
-            {/* 9. Special Promo Banner Placement */}
             <PromoBannerCard
               countLabel="LIMITED OFFER"
               heading="Unlock Pro Personalized Coaching Plans"
@@ -551,7 +484,6 @@ const WorkoutTracker = ({ navigation }) => {
               onPress={() => console.log('Promo Banner Clicked')}
             />
 
-            {/* 10. Vertical List Recommended Rows Section */}
             <Text style={[styles.subHeading, { marginBottom: 10 }]}>Recommended Rows</Text>
             {MOCK_RECOMMENDED_ROWS.map((row) => (
               <RowWorkoutCard
@@ -592,7 +524,7 @@ const styles = StyleSheet.create({
   textColumn: { flexDirection: 'column' },
   greetingSubheading: {
     fontFamily: 'Montserrat-Bold',
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
     color: '#111111',
     letterSpacing: -0.5,
@@ -600,7 +532,7 @@ const styles = StyleSheet.create({
   portraitCardScrollGap: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    gap: 12,              
+    gap: 12,
   },
   headerRightButtons: { flexDirection: 'row', alignItems: 'center' },
   streakFireIcon: { marginRight: 12 },
@@ -617,7 +549,7 @@ const styles = StyleSheet.create({
   statPillText: { width: '100%' },
   statValue: { fontSize: 15, fontFamily: 'Montserrat-Bold', fontWeight: '700', color: '#2D3142' },
   statLabel: { fontSize: 10, color: '#8A8F99', fontFamily: 'Montserrat-Medium', marginTop: 1 },
-  
+
   challengeCarouselPadding: { paddingHorizontal: 20, marginTop: 20 },
   challengeHeroCard: {
     width: width - 40,
@@ -661,7 +593,7 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 20, marginTop: 14, marginBottom: 12 },
   innerSectionTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', fontWeight: '700', color: '#111111' },
   sectionCount: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#9E9E9E' },
-  
+
   routineCardContainer: { flexDirection: 'row', backgroundColor: '#FFFFFF', marginHorizontal: 20, marginBottom: 16, alignItems: 'center' },
   routineThumbnail: { width: 78, height: 78, borderRadius: 18, backgroundColor: '#F4F5F7' },
   routineDetailsGroup: { flex: 1, marginLeft: 16, justifyContent: 'center' },
@@ -672,7 +604,6 @@ const styles = StyleSheet.create({
   historyCapsule: { backgroundColor: '#F4F5F7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start', marginTop: 6 },
   historyText: { fontSize: 11, color: '#A0A5B0', fontWeight: '600' },
 
-  // Exercise search bar
   exerciseSearchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     marginHorizontal: 20, marginBottom: 12, paddingHorizontal: 16, height: 48,
@@ -680,12 +611,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: '#E0E8FF',
   },
   exerciseSearchPlaceholder: { flex: 1, fontSize: 14, color: '#999' },
-  exerciseSearchBadge: {
-    backgroundColor: '#5A8BFF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
-  },
-  exerciseSearchBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-
-  // Rec banner
+  
   recBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: '#5A8BFF', marginHorizontal: 20, borderRadius: 18,
@@ -693,9 +619,8 @@ const styles = StyleSheet.create({
   },
   recBannerTextCol: { flex: 1 },
   recBannerTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  recBannerSub:   { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2 },
+  recBannerSub: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2 },
 
-  // Rec exercise cards
   recExCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: '#fff', marginHorizontal: 20, marginBottom: 10,
@@ -704,108 +629,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   recExImage: { width: 60, height: 60, borderRadius: 12 },
-  recExInfo:  { flex: 1 },
-  recExName:  { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 2 },
-  recExMeta:  { fontSize: 11, color: '#999', textTransform: 'capitalize' },
-  recExRow:   { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
-  recExKcal:  { fontSize: 11, color: '#FF5A5A' },
-  calendarCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    marginHorizontal: 20,
-    marginTop: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#0066EE',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.02,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  calendarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  calendarTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-    fontFamily: 'Montserrat-Bold',
-  },
-  calendarNavRow: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  navArrow: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F8FAFC',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  weekLabelsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  weekLabel: {
-    width: (width - 72) / 7,
-    textAlign: 'center',
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#94A3B8',
-  },
-  daysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    rowGap: 8,
-  },
-  dayCellEmpty: {
-    width: (width - 72) / 7,
-    height: 34,
-  },
+  recExInfo: { flex: 1 },
+  recExName: { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 2 },
+  recExMeta: { fontSize: 11, color: '#999', textTransform: 'capitalize' },
+  recExRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
+  recExKcal: { fontSize: 11, color: '#FF5A5A' },
+  
+  calendarStripContainer: { marginBottom: 16, marginTop: 10 },
   dayCell: {
-    width: (width - 72) / 7,
-    height: 34,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 17,
-    position: 'relative',
+    width: 54, height: 74, minWidth: 54, borderRadius: 16, backgroundColor: '#FFFFFF',
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9'
   },
-  dayCellSelected: {
-    backgroundColor: '#0066EE',
-  },
-  dayCellHasWorkout: {
-    backgroundColor: '#F0F4FF',
-  },
-  dayCellText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  dayCellTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  dayCellTextHasWorkout: {
-    color: '#0066EE',
-    fontWeight: '700',
-  },
-  workoutDot: {
-    position: 'absolute',
-    bottom: 3,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#0066EE',
-  },
-  workoutDotSelected: {
-    backgroundColor: '#FFFFFF',
-  },
+  dayCellSelected: { backgroundColor: '#0066EE', borderColor: '#0066EE' },
+  dayCellHasWorkout: { backgroundColor: '#F0F5FF', borderColor: '#D6E4FF' },
+  dayCellName: { color: '#94A3B8', fontSize: 12, fontFamily: 'Montserrat-Medium', textTransform: 'uppercase' },
+  dayCellText: { color: '#334155', fontSize: 16, fontFamily: 'Montserrat-Bold', fontWeight: '700', marginTop: 2 },
+  dayCellTextSelected: { color: '#FFFFFF' },
+  workoutDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#0066EE', marginTop: 6 },
+  workoutDotSelected: { backgroundColor: '#FFFFFF' },
+
   selectedLogsContainer: {
     marginHorizontal: 20,
     marginTop: 12,

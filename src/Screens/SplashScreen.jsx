@@ -9,13 +9,14 @@ const SplashScreen = () => {
       <StatusBar barStyle="light-content"/>
       <View style={styles.logoContainer}>
         <Image
-          source={require('../images/fittrackLogo.png')}
+          source={require('../images/Myfirfly.png')}
           style={styles.logo}
           resizeMode="contain"
         />
       </View>
     </View>
   );
+  
 };
 
 const styles = StyleSheet.create({
@@ -26,8 +27,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoContainer: {
-    width: width * 0.9,
-    height: width * 0.9,
+    width: width * 0.4,
+    height: width * 0.4,
   },
   logo: {
     width: '100%',

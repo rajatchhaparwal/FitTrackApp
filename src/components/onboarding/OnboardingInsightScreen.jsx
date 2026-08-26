@@ -1,158 +1,305 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ImageBackground,
+  TouchableOpacity,
+  Dimensions,
+  StatusBar,
+  ActivityIndicator,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   FITTRACK_FEATURES,
   INSIGHT_PHASES,
 } from '../../constants/onboardingContent';
 
-function FeatureLine({ feature }) {
-  return (
-    <View style={styles.featureLine}>
-      <View style={[styles.featureDot, { backgroundColor: feature.color }]}>
-        <Icon name={feature.icon} size={16} color="#FFF" />
-      </View>
-      <View style={styles.featureCopy}>
-        <Text style={styles.featureTitle}>{feature.title}</Text>
-        <Text style={styles.featureDesc}>{feature.desc}</Text>
-      </View>
-    </View>
-  );
-}
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-export default function OnboardingInsightScreen({ formData, phase }) {
+export default function OnboardingInsightScreen({
+  formData = { name: '' },
+  phase = 'name',
+  onNext,
+  onBack,
+  progressPercent = 20,
+  isSubmitting = false,
+  isLastStep = false,
+}) {
+  const insets = useSafeAreaInsets();
   const config = INSIGHT_PHASES[phase] || INSIGHT_PHASES.name;
-  const firstName = formData.name.trim().split(/\s+/)[0] || '';
+  const firstName = formData?.name?.trim()?.split(/\s+/)[0] || '';
   const headline = config.headline(firstName);
   const isFinish = phase === 'finish';
   const highlight = config.feature ? FITTRACK_FEATURES[config.feature] : null;
 
   return (
-    <View style={styles.root}>
-      <Text style={styles.headline}>{headline}</Text>
-      <Text style={styles.subtext}>{config.subtext}</Text>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      <View style={styles.imageWrap}>
-        <Image
-          source={{ uri: config.image }}
-          style={styles.heroImage}
-          resizeMode="cover"
-          accessibilityRole="image"
-          accessibilityLabel={headline}
-        />
-        <View style={styles.imageFade} />
-      </View>
+      <ImageBackground
+        source={{ uri: config.image }}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      >
+        {/* Dark gradient overlays */}
+        <View style={styles.topVignette} />
+        <View style={styles.bottomGradientLight} />
+        <View style={styles.bottomGradientHeavy} />
 
-      {isFinish ? (
-        <View style={styles.featureList}>
-          {Object.values(FITTRACK_FEATURES).map((feature) => (
-            <FeatureLine key={feature.title} feature={feature} />
-          ))}
+        {/* Top Bar with consistent progress tracking line */}
+        <View style={[styles.topBar, { paddingTop: Math.max(insets.top + 6, 20) }]}>
+          <View style={styles.topNavRow}>
+            {onBack ? (
+              <TouchableOpacity
+                style={styles.glassBackBtn}
+                onPress={onBack}
+                disabled={isSubmitting}
+                activeOpacity={0.7}
+              >
+                <Icon name="chevron-left" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.topSpacer} />
+            )}
+            <Text style={styles.brandTitle}>MyFitFly</Text>
+            <View style={styles.topSpacer} />
+          </View>
+
+          {/* Consistent Blue Progress Track Line */}
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+          </View>
         </View>
-      ) : highlight ? (
-        <View style={styles.highlightBlock}>
-          <Icon name={highlight.icon} size={18} color={highlight.color} />
-          <Text style={styles.highlightText}>
-            <Text style={styles.highlightTitle}>{highlight.title}. </Text>
-            {highlight.desc}
-          </Text>
-        </View>
-      ) : null}
 
-      {config.quote ? <Text style={styles.quote}>{config.quote}</Text> : null}
+        {/* Bottom Content Area */}
+        <View style={[styles.bottomContent, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
+          {/* Overlaid Headline */}
+          <Text style={styles.headline}>{headline}</Text>
+
+          {/* Overlaid Subtext */}
+          <Text style={styles.subtext}>{config.subtext}</Text>
+
+          {/* Highlight feature pill if applicable */}
+          {highlight && !isFinish ? (
+            <View style={styles.highlightPill}>
+              <Icon name={highlight.icon} size={16} color="#5A8BFF" />
+              <Text style={styles.highlightText} numberOfLines={1}>
+                {highlight.title}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* Finish features compact row */}
+          {isFinish ? (
+            <View style={styles.finishRow}>
+              {Object.values(FITTRACK_FEATURES).map((f) => (
+                <View key={f.title} style={styles.finishChip}>
+                  <Icon name={f.icon} size={14} color="#5A8BFF" />
+                  <Text style={styles.finishChipText}>{f.title}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {/* Primary CTA Button */}
+          <TouchableOpacity
+            style={[styles.primaryBtn, isSubmitting && styles.primaryBtnOff]}
+            onPress={onNext}
+            disabled={isSubmitting}
+            activeOpacity={0.88}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryBtnText}>
+                {isLastStep ? 'Start My Journey' : 'Continue'}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          {config.quote ? (
+            <Text style={styles.quote}>“{config.quote}”</Text>
+          ) : null}
+        </View>
+      </ImageBackground>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    paddingTop: 4,
-  },
-  headline: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#111827',
-    lineHeight: 34,
-    letterSpacing: -0.5,
-  },
-  subtext: {
-    fontSize: 16,
-    color: '#4B5563',
-    lineHeight: 24,
-    marginTop: 10,
-    fontWeight: '400',
-  },
-  imageWrap: {
-    marginTop: 28,
-    borderRadius: 18,
-    overflow: 'hidden',
-    backgroundColor: '#E5E7EB',
-  },
-  heroImage: {
+  container: {
+    flex: 1,
+    backgroundColor: '#090D16',
     width: '100%',
-    aspectRatio: 4 / 3,
+    height: '100%',
   },
-  imageFade: {
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    justifyContent: 'space-between',
+  },
+  topVignette: {
     position: 'absolute',
+    top: 0,
     left: 0,
     right: 0,
+    height: 160,
+    backgroundColor: 'rgba(9, 13, 22, 0.65)',
+  },
+  bottomGradientLight: {
+    position: 'absolute',
     bottom: 0,
-    height: 48,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    left: 0,
+    right: 0,
+    height: SCREEN_HEIGHT * 0.6,
+    backgroundColor: 'rgba(9, 13, 22, 0.45)',
   },
-  highlightBlock: {
+  bottomGradientHeavy: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: SCREEN_HEIGHT * 0.42,
+    backgroundColor: 'rgba(9, 13, 22, 0.92)',
+  },
+  topBar: {
+    paddingHorizontal: 24,
+    zIndex: 10,
+  },
+  topNavRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginTop: 22,
-    paddingHorizontal: 2,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  highlightText: {
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#374151',
-  },
-  highlightTitle: {
-    fontWeight: '700',
-    color: '#111827',
-  },
-  featureList: {
-    marginTop: 24,
-    gap: 18,
-  },
-  featureLine: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  featureDot: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  glassBackBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-    marginTop: 1,
   },
-  featureCopy: {
-    flex: 1,
+  topSpacer: {
+    width: 38,
   },
-  featureTitle: {
+  brandTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#5A8BFF',
+    letterSpacing: 0.5,
+  },
+  progressTrack: {
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#5A8BFF',
+    borderRadius: 2,
+  },
+  bottomContent: {
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  headline: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 36,
+    letterSpacing: -0.5,
+    marginBottom: 10,
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  subtext: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 2,
+    color: 'rgba(255, 255, 255, 0.88)',
+    textAlign: 'center',
+    lineHeight: 22,
+    fontWeight: '400',
+    maxWidth: SCREEN_WIDTH * 0.88,
+    marginBottom: 16,
+    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
-  featureDesc: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#6B7280',
+  highlightPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(19, 26, 42, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(90, 139, 255, 0.4)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    marginBottom: 20,
+  },
+  highlightText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  finishRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 20,
+  },
+  finishChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(19, 26, 42, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(90, 139, 255, 0.35)',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  finishChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#F1F5F9',
+  },
+  primaryBtn: {
+    width: '100%',
+    height: 52,
+    backgroundColor: '#5A8BFF',
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#5A8BFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  primaryBtnOff: {
+    backgroundColor: '#3554A5',
+  },
+  primaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
   quote: {
-    marginTop: 28,
-    fontSize: 14,
-    color: '#9CA3AF',
-    lineHeight: 21,
+    marginTop: 12,
+    fontSize: 12,
     fontStyle: 'italic',
+    color: 'rgba(255, 255, 255, 0.65)',
+    textAlign: 'center',
   },
 });

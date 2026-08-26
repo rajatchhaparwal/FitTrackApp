@@ -75,13 +75,21 @@ const LivePoseDetectionScreen = ({ navigation, route }) => {
     repCounterRef.current = createRepCounter(thresholds);
   }, [poseConfig]);
 
+  const isAlignedRef = useRef(false);
+
   useEffect(() => {
     if (!sessionActive) return undefined;
     const timer = setInterval(() => {
-      setElapsedSec(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      if (poseConfig?.metrics_calculation?.evaluation_type === 'static_hold_alignment') {
+        if (isAlignedRef.current) {
+          setElapsedSec((prev) => prev + 1);
+        }
+      } else {
+        setElapsedSec((prev) => prev + 1);
+      }
     }, 1000);
     return () => clearInterval(timer);
-  }, [sessionActive]);
+  }, [sessionActive, poseConfig]);
 
   const onResults = useCallback(
     (result) => {
@@ -90,6 +98,8 @@ const LivePoseDetectionScreen = ({ navigation, route }) => {
       if (!landmarks) return;
 
       const analysis = analyzePoseFrame(landmarks, poseConfig, repCounterRef.current);
+      
+      isAlignedRef.current = analysis.isAligned;
       setRepCount(analysis.repCount);
       setFormScore(analysis.formScore);
       setCurrentAngle(analysis.currentAngle != null ? Math.round(analysis.currentAngle) : null);

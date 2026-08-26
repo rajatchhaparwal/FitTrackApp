@@ -4,6 +4,7 @@ import axios from 'axios';
 import { getAuth } from '@react-native-firebase/auth';
 import {
   clearLocalOnboardingComplete,
+  getLocalOnboardingComplete,
   parseOnboardingCompleteFromApi,
   setLocalOnboardingComplete,
 } from './src/services/onboardingStatus';
@@ -18,22 +19,27 @@ export const UserProvider = ({ children, api_call }) => {
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   const fetchAllUserData = async () => {
+    const currentUser = getAuth().currentUser;
+    if (!currentUser) {
+      setUserData(null);
+      setNeedsOnboarding(false);
+      setLoading(false);
+      return;
+    }
+
+    const uid = currentUser.uid;
+
+    // Check local cache first so UI can transition immediately
     try {
-      setLoading(true);
+      const cachedComplete = await getLocalOnboardingComplete(uid);
+      setNeedsOnboarding(!cachedComplete);
+    } catch {}
 
-      const currentUser = getAuth().currentUser;
-      if (!currentUser) {
-        setUserData(null);
-        setNeedsOnboarding(false);
-        setLoading(false);
-        return;
-      }
-
-      const uid = currentUser.uid;
-
+    try {
       try {
         const userResponse = await axios.get(`${api_call}/Home`, {
           headers: { 'firebase-uid': uid },
+          timeout: 3000,
         });
 
         if (userResponse.data.user) {
@@ -53,9 +59,7 @@ export const UserProvider = ({ children, api_call }) => {
           setUserData(null);
           setNeedsOnboarding(true);
         } else {
-          console.error('Profile API Error:', error.message);
-          setUserData(null);
-          setNeedsOnboarding(true);
+          console.warn('Profile API response slow or offline:', error.message);
         }
       }
     } catch (globalErr) {

@@ -63,7 +63,7 @@ const CaptureMeal = ({ navigation, route }) => {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.CAMERA,
           {
-            title: "FitTrack Camera Permission",
+            title: "MyFitFly Camera Permission",
             message: "We need camera access to analyze your meal.",
             buttonPositive: "OK",
           }
@@ -139,50 +139,9 @@ const CaptureMeal = ({ navigation, route }) => {
     }, 500);
   }, []);
 
-  const handleFoodAdd = async (food) => {
+  const handleFoodAdd = (food) => {
     Keyboard.dismiss();
-    try {
-      const user = auth().currentUser;
-      if (!user) {
-        Alert.alert('Session Expired', 'Please log in again.');
-        return;
-      }
-
-      const response = await fetch(`${api_call}/DietLog/food`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'firebase-uid': user.uid,
-        },
-        body: JSON.stringify({
-          mealType: mealType,
-          food: {
-            name: food.name,
-            quantity: 100,
-            unit: 'grams',
-            calories: food.calories,
-            protein: food.protein,
-            carbs: food.carbs,
-            fat: food.fat,
-            source: 'search'
-          }
-        })
-      });
-
-      const resData = await response.json();
-      if (response.ok && resData.success) {
-        Alert.alert(
-          '✅ Added!',
-          `${food.name} (${Math.round(food.calories)} kcal) added to ${mealType}`,
-          [{ text: 'Log Another', style: 'default' }, { text: 'Done', onPress: () => navigation.goBack() }]
-        );
-      } else {
-        throw new Error(resData.message || 'Failed to save food');
-      }
-    } catch (err) {
-      console.error('Error logging food:', err);
-      Alert.alert('Error', 'Could not add food to your daily log. Please try again.');
-    }
+    navigation.navigate('FoodDetail', { food, defaultMealType: mealType });
   };
 
   const openFullSearch = () => {

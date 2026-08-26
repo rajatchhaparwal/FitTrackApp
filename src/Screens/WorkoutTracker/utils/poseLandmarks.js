@@ -1,47 +1,47 @@
-import { KnownPoseLandmarks } from 'react-native-mediapipe';
 
-/** Maps backend/schema landmark names to MediaPipe indices */
+/** Maps backend/schema landmark names to MediaPipe indices (0–32) */
 export const LANDMARK_NAME_TO_INDEX = {
-  NOSE: KnownPoseLandmarks.nose,
-  LEFT_EYE_INNER: KnownPoseLandmarks.leftEyeInner,
-  LEFT_EYE: KnownPoseLandmarks.leftEye,
-  LEFT_EYE_OUTER: KnownPoseLandmarks.leftEyeOuter,
-  RIGHT_EYE_INNER: KnownPoseLandmarks.rightEyeInner,
-  RIGHT_EYE: KnownPoseLandmarks.rightEye,
-  RIGHT_EYE_OUTER: KnownPoseLandmarks.rightEyeOuter,
-  LEFT_EAR: KnownPoseLandmarks.leftEar,
-  RIGHT_EAR: KnownPoseLandmarks.rightEar,
-  MOUTH_LEFT: KnownPoseLandmarks.mouthLeft,
-  MOUTH_RIGHT: KnownPoseLandmarks.mouthRight,
-  LEFT_SHOULDER: KnownPoseLandmarks.leftShoulder,
-  RIGHT_SHOULDER: KnownPoseLandmarks.rightShoulder,
-  LEFT_ELBOW: KnownPoseLandmarks.leftElbow,
-  RIGHT_ELBOW: KnownPoseLandmarks.rightElbow,
-  LEFT_WRIST: KnownPoseLandmarks.leftWrist,
-  RIGHT_WRIST: KnownPoseLandmarks.rightWrist,
-  LEFT_PINKY: KnownPoseLandmarks.leftPinky,
-  RIGHT_PINKY: KnownPoseLandmarks.rightPinky,
-  LEFT_INDEX: KnownPoseLandmarks.leftIndex,
-  RIGHT_INDEX: KnownPoseLandmarks.rightIndex,
-  LEFT_THUMB: KnownPoseLandmarks.leftThumb,
-  RIGHT_THUMB: KnownPoseLandmarks.rightThumb,
-  LEFT_HIP: KnownPoseLandmarks.leftHip,
-  RIGHT_HIP: KnownPoseLandmarks.rightHip,
-  LEFT_KNEE: KnownPoseLandmarks.leftKnee,
-  RIGHT_KNEE: KnownPoseLandmarks.rightKnee,
-  LEFT_ANKLE: KnownPoseLandmarks.leftAnkle,
-  RIGHT_ANKLE: KnownPoseLandmarks.rightAnkle,
-  LEFT_HEEL: KnownPoseLandmarks.leftHeel,
-  RIGHT_HEEL: KnownPoseLandmarks.rightHeel,
-  LEFT_FOOT_INDEX: KnownPoseLandmarks.leftFootIndex,
-  RIGHT_FOOT_INDEX: KnownPoseLandmarks.rightFootIndex,
+  NOSE: 0,
+  LEFT_EYE_INNER: 1,
+  LEFT_EYE: 2,
+  LEFT_EYE_OUTER: 3,
+  RIGHT_EYE_INNER: 4,
+  RIGHT_EYE: 5,
+  RIGHT_EYE_OUTER: 6,
+  LEFT_EAR: 7,
+  RIGHT_EAR: 8,
+  MOUTH_LEFT: 9,
+  MOUTH_RIGHT: 10,
+  LEFT_SHOULDER: 11,
+  RIGHT_SHOULDER: 12,
+  LEFT_ELBOW: 13,
+  RIGHT_ELBOW: 14,
+  LEFT_WRIST: 15,
+  RIGHT_WRIST: 16,
+  LEFT_PINKY: 17,
+  RIGHT_PINKY: 18,
+  LEFT_INDEX: 19,
+  RIGHT_INDEX: 20,
+  LEFT_THUMB: 21,
+  RIGHT_THUMB: 22,
+  LEFT_HIP: 23,
+  RIGHT_HIP: 24,
+  LEFT_KNEE: 25,
+  RIGHT_KNEE: 26,
+  LEFT_ANKLE: 27,
+  RIGHT_ANKLE: 28,
+  LEFT_HEEL: 29,
+  RIGHT_HEEL: 30,
+  LEFT_FOOT_INDEX: 31,
+  RIGHT_FOOT_INDEX: 32,
 };
 
 export function getLandmark(landmarks, name) {
   const index = LANDMARK_NAME_TO_INDEX[name];
   if (index == null || !landmarks?.[index]) return null;
   const point = landmarks[index];
-  if ((point.visibility ?? 1) < 0.35 && (point.presence ?? 1) < 0.35) return null;
+  // Require visibility > 0.5 for production-quality tracking
+  if ((point.visibility ?? 1) < 0.5) return null;
   return point;
 }
 

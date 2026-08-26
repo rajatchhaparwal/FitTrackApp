@@ -18,66 +18,73 @@ import SplashScreen from './src/Screens/SplashScreen';
 import Home from './src/Screens/Home';
 import WorkoutTracker from './src/Screens/WorkoutTracker/WorkoutTracker';
 import DietTracker from './src/Screens/DietTracker/DietTracker';
-import ProfilePage from './src/Screens/UserProfile/ProfilePage';
 import NotificationsScreen from './src/Screens/UserProfile/NotificationsScreen';
+import AccountSettingsScreen from './src/Screens/UserProfile/AccountSettingsScreen';
+import ProgressHistoryScreen from './src/Screens/UserProfile/ProgressHistoryScreen';
 
 // ── Diet Screens ───────────────────────────────────────────────────────────────
 import CaptureMeal from './src/Screens/DietTracker/CaptureMeal';
+import CalorieLogScreen from './src/Screens/DietTracker/CalorieLogScreen';
 import TrackFood from './src/components/DietTracker/TrackFood';
 
 // ── Workout Screens ────────────────────────────────────────────────────────────
 import AbsBeginnerScreen from './src/Screens/WorkoutTracker/AbsBeginnerScreen';
 import SpecificWorkoutPage from './src/Screens/WorkoutTracker/SpecificWorkoutPage';
-import LivePoseDetectionScreen from './src/Screens/WorkoutTracker/LivePoseDetectionScreen';
+import MediaPipeLiveScreen from './src/Screens/WorkoutTracker/MediaPipeLiveScreen';
 
 // ── Activity Screens ───────────────────────────────────────────────────────────
 import DrinkWaterScreen from './src/Screens/Actitvities/DrinkWaterScreen';
 import StepsScreen from './src/Screens/Actitvities/StepsScreen';
 import Activities from './src/components/ActivityTracker/Activities';
+import UserStreak from './src/Screens/UserProfile/UserStreak';
 
 // ── NEW: Recommendation & Search Screens ──────────────────────────────────────
 import FoodSearchScreen from './src/Screens/FoodSearch/FoodSearchScreen';
 import ExerciseRecommendationScreen from './src/Screens/ExerciseRecommendation/ExerciseRecommendationScreen';
 import FoodRecommendationScreen from './src/Screens/FoodRecommendation/FoodRecommendationScreen';
-import FoodDetailScreen        from './src/Screens/FoodRecommendation/FoodDetailScreen';
+import FoodDetailScreen from './src/Screens/FoodRecommendation/FoodDetailScreen';
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 
 // ── API Base URL ───────────────────────────────────────────────────────────────
 import api_call from './api';
 
-const Tab   = createBottomTabNavigator();
+const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 // ── Bottom Tab Navigator ───────────────────────────────────────────────────────
 function MyTab() {
+  const { theme } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: '#0066EE',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: theme.tabBarActive,
+        tabBarInactiveTintColor: theme.tabBarInactive,
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: theme.tabBar,
           borderTopWidth: 1,
-          borderTopColor: '#F0F0F0',
+          borderTopColor: theme.tabBarBorder,
           paddingBottom: 4,
           height: 60,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         tabBarIcon: ({ color, size }) => {
           const iconMap = {
-            Home:    'home',
+            Home: 'home',
             Workout: 'timer',
-            Diet:    'food-apple',
+            Diet: 'food-apple',
             Profile: 'account',
           };
           return <Icons name={iconMap[route.name] || 'circle'} size={size} color={color} />;
         },
       })}
     >
-      <Tab.Screen name="Home"    component={Home} />
+      <Tab.Screen name="Home" component={Home} />
       <Tab.Screen name="Workout" component={WorkoutTracker} />
-      <Tab.Screen name="Diet"    component={DietTracker} />
-      <Tab.Screen name="Profile" component={ProfilePage} />
+      <Tab.Screen name="Diet" component={DietTracker} />
+      <Tab.Screen name="Profile" component={AccountSettingsScreen} />
     </Tab.Navigator>
   );
 }
@@ -85,31 +92,32 @@ function MyTab() {
 // ── Root Stack Navigator ───────────────────────────────────────────────────────
 export function MyStack() {
   const { needsOnboarding, setNeedsOnboarding, loading: profileLoading, refreshData } = useUser();
-  const [isLoading,  setIsLoading]  = useState(true);
-  const [authReady,  setAuthReady]  = useState(false);
-  const [isLogged,   setIsLogged]   = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
+  const [isLogged, setIsLogged] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    // Minimum splash display time
+    // Quick splash display time (300ms for smooth initial mount)
     const splashTimer = setTimeout(() => {
       if (!cancelled) setIsLoading(false);
-    }, 2000);
+    }, 300);
 
-    // Auth timeout fallback (6 s)
+    // Auth timeout fallback (2.5 s max)
     const authFallbackTimer = setTimeout(() => {
       if (!cancelled) {
-        console.warn('Auth check timed out. Forcing ready state.');
         setAuthReady(true);
+        setIsLoading(false);
       }
-    }, 6000);
+    }, 2500);
 
     const unsubscribe = subscribeToAuthState((user) => {
       if (cancelled) return;
       setIsLogged(Boolean(user));
       clearTimeout(authFallbackTimer);
       setAuthReady(true);
+      setIsLoading(false);
     });
 
     return () => {
@@ -128,7 +136,7 @@ export function MyStack() {
       {!isLogged ? (
         <>
           <Stack.Screen name="Login" component={Login} />
-          <Stack.Screen name="Otp"   component={Otp} />
+          <Stack.Screen name="Otp" component={Otp} />
         </>
       ) : needsOnboarding ? (
         <>
@@ -152,27 +160,30 @@ export function MyStack() {
           <Stack.Screen name="MyTab" component={MyTab} />
 
           {/* ── Diet Screens ── */}
-          <Stack.Screen name="DietDetails"         component={DietTracker} />
-          <Stack.Screen name="CaptureMeal"          component={CaptureMeal} />
-          <Stack.Screen name="TrackFood"            component={TrackFood} />
-
+          <Stack.Screen name="DietDetails" component={DietTracker} />
+          <Stack.Screen name="CaptureMeal" component={CaptureMeal} />
+          <Stack.Screen name="TrackFood" component={TrackFood} />
+          <Stack.Screen name="CalorieLog" component={CalorieLogScreen} />
+          
           {/* ── Workout Screens ── */}
-          <Stack.Screen name="AbsBeginnerScreen"    component={AbsBeginnerScreen} />
-          <Stack.Screen name="SpecificWorkoutPage"  component={SpecificWorkoutPage} />
-          <Stack.Screen name="LivePoseDetection"    component={LivePoseDetectionScreen} />
-          <Stack.Screen name="WorkoutTracker"       component={WorkoutTracker} />
+          <Stack.Screen name="AbsBeginnerScreen" component={AbsBeginnerScreen} />
+          <Stack.Screen name="SpecificWorkoutPage" component={SpecificWorkoutPage} />
+          <Stack.Screen name="QuickPoseLiveScreen" component={MediaPipeLiveScreen} />
+          <Stack.Screen name="WorkoutTracker" component={WorkoutTracker} />
 
           {/* ── Activity Screens ── */}
-          <Stack.Screen name="DrinkWaterScreen"     component={DrinkWaterScreen} />
-          <Stack.Screen name="Activities"           component={Activities} />
-          <Stack.Screen name="Steps"                component={StepsScreen} />
+          <Stack.Screen name="DrinkWaterScreen" component={DrinkWaterScreen} />
+          <Stack.Screen name="Activities" component={Activities} />
+          <Stack.Screen name="Steps" component={StepsScreen} />
 
           {/* ── NEW: Recommendation & Search Screens ── */}
-          <Stack.Screen name="FoodSearch"            component={FoodSearchScreen} />
+          <Stack.Screen name="FoodSearch" component={FoodSearchScreen} />
           <Stack.Screen name="ExerciseRecommendation" component={ExerciseRecommendationScreen} />
-          <Stack.Screen name="FoodRecommendation"    component={FoodRecommendationScreen} />
-          <Stack.Screen name="FoodDetail"             component={FoodDetailScreen} />
-          <Stack.Screen name="Notifications"         component={NotificationsScreen} />
+          <Stack.Screen name="FoodRecommendation" component={FoodRecommendationScreen} />
+          <Stack.Screen name="FoodDetail" component={FoodDetailScreen} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="UserStreak" component={UserStreak}/>
+          <Stack.Screen name="ProgressHistory" component={ProgressHistoryScreen} />
         </>
       )}
     </Stack.Navigator>
@@ -181,11 +192,13 @@ export function MyStack() {
 
 // ── Root App ───────────────────────────────────────────────────────────────────
 const App = () => (
-  <UserProvider api_call={api_call}>
-    <NavigationContainer>
-      <MyStack />
-    </NavigationContainer>
-  </UserProvider>
+  <ThemeProvider>
+    <UserProvider api_call={api_call}>
+      <NavigationContainer>
+        <MyStack />
+      </NavigationContainer>
+    </UserProvider>
+  </ThemeProvider>
 );
 
 export default App;

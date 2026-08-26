@@ -3,7 +3,7 @@
  * Returns personalised workout suggestions based on user profile data.
  */
 
-// ── Full exercise database ─────────────────────────────────────────────────────
+// ── Full static fallback exercise database ──────────────────────────────────────
 const EXERCISE_DATABASE = [
   // ── ABS ──────────────────────────────────────────────────────────────────────
   { id: 'ABS_01', name: 'Crunches',            bodyPart: 'Abs',      type: 'strength',    sets: 3, reps: '15-20', duration: null,  difficulty: 'beginner',     kcalPer30: 120, imageUri: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=300', description: 'Classic abdominal exercise targeting the rectus abdominis.' },
@@ -55,78 +55,133 @@ const EXERCISE_DATABASE = [
 
 // ── Recommendation Logic ────────────────────────────────────────────────────────
 /**
- * Get personalised workout recommendations based on user profile.
+ * Get personalised workout recommendations based on user profile and loaded exercises list.
  * @param {Object} userProfile – from UserContext userData
- * @returns {Array} recommended exercises
+ * @param {Array} exercisesList – list of exercises (fetched from backend or falls back to static)
+ * @param {number} limit – max items to return
+ * @returns {Array} recommended and sorted exercises
  */
-export const getPersonalizedWorkouts = (userProfile = {}) => {
-  const goal       = (userProfile.goal          || '').toLowerCase();
-  const level      = (userProfile.fitness_level || 'beginner').toLowerCase();
-  const weight     = parseFloat(userProfile.weight || 70);
-  const height     = parseFloat(userProfile.height || 170);
-  const bmi        = weight / Math.pow(height / 100, 2);
+export const getPersonalizedWorkouts = (userProfile = {}, exercisesList = null, limit = 20) => {
+  const goal = (userProfile.goal || '').toLowerCase();
+  const level = (userProfile.fitness_level || userProfile.fitnessLevel || 'beginner').toLowerCase();
+  const weight = parseFloat(userProfile.weight || 70);
+  const height = parseFloat(userProfile.height || 170);
+  const bmi = weight / Math.pow(height / 100, 2);
 
-  let filtered = [...EXERCISE_DATABASE];
+  // Parse user preferences
+  const prefCategories = (userProfile.preferences?.preferred_categories || []).map(c => c.toLowerCase());
+  const prefEquipment = (userProfile.preferences?.preferred_equipment || []).map(e => e.toLowerCase());
 
-  // ── Filter by fitness level ──────────────────────────────────────────────────
+  // Use loaded exercises list or fallback to static DB
+  const rawList = Array.isArray(exercisesList) && exercisesList.length > 0 ? exercisesList : EXERCISE_DATABASE;
+  let filtered = [...rawList];
+
+  // ── Filter by fitness difficulty level ───────────────────────────────────────
   const levelMap = {
     beginner:     ['beginner'],
     intermediate: ['beginner', 'intermediate'],
     advanced:     ['beginner', 'intermediate', 'advanced'],
   };
   const allowedLevels = levelMap[level] || levelMap.beginner;
-  filtered = filtered.filter(e => allowedLevels.includes(e.difficulty));
+  filtered = filtered.filter(e => {
+    const diff = (e.difficulty || 'beginner').toLowerCase();
+    return allowedLevels.includes(diff);
+  });
 
-  // ── Goal-based scoring ───────────────────────────────────────────────────────
+  // ── Goal and Preference-based scoring ────────────────────────────────────────
   const scored = filtered.map(exercise => {
     let score = 0;
+    const nameLower = (exercise.name || '').toLowerCase();
+    const typeLower = (exercise.type || '').toLowerCase();
+    const descLower = (exercise.description || '').toLowerCase();
+    const bodyPartLower = (exercise.bodyPart || '').toLowerCase();
 
-    if (goal.includes('weight') || goal.includes('fat') || goal.includes('lose')) {
-      if (exercise.type === 'cardio') score += 30;
-      if (exercise.kcalPer30 > 200)   score += 20;
-      if (exercise.type === 'strength') score += 10;
+    // 1. Goal-based matching
+    if (goal.includes('loss') || goal.includes('fat') || goal.includes('endurance')) {
+      if (typeLower === 'cardio') score += 35;
+      if (nameLower.includes('hiit') || descLower.includes('hiit')) score += 25;
+      if (exercise.kcalPer30 > 200) score += 20;
+      if (typeLower === 'strength') score += 10;
     } else if (goal.includes('muscle') || goal.includes('bulk') || goal.includes('gain')) {
-      if (exercise.type === 'strength')  score += 30;
-      if (exercise.sets >= 4)            score += 10;
-      if (exercise.type === 'cardio')    score += 5;
-    } else if (goal.includes('flex') || goal.includes('yoga')) {
-      if (exercise.type === 'flexibility') score += 30;
-      if (exercise.type === 'cardio')      score += 10;
+      if (typeLower === 'strength') score += 35;
+      if (exercise.sets >= 4) score += 15;
+      if (bodyPartLower === 'chest' || bodyPartLower === 'leg' || bodyPartLower === 'back') score += 10;
+    } else if (goal.includes('flex') || goal.includes('yoga') || goal.includes('stress')) {
+      if (typeLower === 'flexibility') score += 35;
+      if (nameLower.includes('stretch') || nameLower.includes('pose')) score += 15;
     } else {
-      // General fitness – balanced
+      // General fitness / stay fit
       score += 15;
     }
 
-    // BMI-based adjustments: high BMI → prefer low-impact
+    // 2. Preferred Categories Match (+40 points)
+    const hasCategoryMatch = prefCategories.some(pref => {
+      if (pref === 'strength' && typeLower === 'strength') return true;
+      if (pref === 'cardio' && typeLower === 'cardio') return true;
+      if (pref === 'flexibility' && typeLower === 'flexibility') return true;
+      if (pref === 'core' && (bodyPartLower === 'abs' || nameLower.includes('plank') || nameLower.includes('crunch') || nameLower.includes('twist'))) return true;
+      if (pref === 'hiit' && (nameLower.includes('hiit') || nameLower.includes('burpee') || nameLower.includes('jumping jack') || nameLower.includes('climber'))) return true;
+      if (pref === 'balance' && (nameLower.includes('balance') || nameLower.includes('single-leg') || nameLower.includes('bird dog'))) return true;
+      return false;
+    });
+    if (hasCategoryMatch) score += 40;
+
+    // 3. Preferred Equipment Match (+30 points)
+    if (prefEquipment.length > 0) {
+      const hasEquipmentMatch = prefEquipment.some(equip => {
+        // Singularise word for broader matches (e.g. dumbbells -> dumbbell)
+        const singularEquip = equip.endsWith('s') ? equip.slice(0, -1) : equip;
+        return nameLower.includes(singularEquip) || descLower.includes(singularEquip);
+      });
+
+      if (hasEquipmentMatch) {
+        score += 30;
+      } else if (prefEquipment.includes('no equipment') || prefEquipment.includes('bodyweight')) {
+        // Boost bodyweight exercises if no-equipment is preferred
+        const nonBodyweightKeywords = ['dumbbell', 'barbell', 'kettlebell', 'treadmill', 'rope', 'bench', 'band'];
+        const isBodyweight = !nonBodyweightKeywords.some(kw => nameLower.includes(kw));
+        if (isBodyweight) score += 25;
+      }
+    }
+
+    // 4. BMI / Health adjustments
+    // High BMI -> lower score of high impact exercises (like running, jump squats) and favor low impact
     if (bmi > 30) {
-      if (exercise.id.startsWith('CAR')) score -= 5;
-      if (exercise.type === 'flexibility') score += 10;
+      if (nameLower.includes('jump') || nameLower.includes('run') || nameLower.includes('burpee')) {
+        score -= 15;
+      }
+      if (typeLower === 'flexibility') {
+        score += 10;
+      }
     }
 
     return { ...exercise, score };
   });
 
-  return scored.sort((a, b) => b.score - a.score).slice(0, 12);
+  // Sort by score descending and return sliced list
+  return scored.sort((a, b) => b.score - a.score).slice(0, limit);
 };
 
 /**
  * Get exercises filtered by body part.
  */
-export const getExercisesByBodyPart = (bodyPart) => {
-  if (!bodyPart || bodyPart === 'All') return EXERCISE_DATABASE;
-  return EXERCISE_DATABASE.filter(e =>
-    e.bodyPart.toLowerCase().includes(bodyPart.toLowerCase())
+export const getExercisesByBodyPart = (bodyPart, exercisesList = EXERCISE_DATABASE) => {
+  const rawList = Array.isArray(exercisesList) && exercisesList.length > 0 ? exercisesList : EXERCISE_DATABASE;
+  if (!bodyPart || bodyPart === 'All') return rawList;
+  return rawList.filter(e =>
+    (e.bodyPart || '').toLowerCase().includes(bodyPart.toLowerCase())
   );
 };
 
 /**
  * Search exercises by name.
  */
-export const searchExercises = (query) => {
+export const searchExercises = (query, exercisesList = EXERCISE_DATABASE) => {
+  const rawList = Array.isArray(exercisesList) && exercisesList.length > 0 ? exercisesList : EXERCISE_DATABASE;
   if (!query) return [];
   const q = query.toLowerCase();
-  return EXERCISE_DATABASE.filter(
-    e => e.name.toLowerCase().includes(q) || e.bodyPart.toLowerCase().includes(q)
+  return rawList.filter(
+    e => (e.name || '').toLowerCase().includes(q) || (e.bodyPart || '').toLowerCase().includes(q)
   );
 };
 

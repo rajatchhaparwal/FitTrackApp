@@ -6,11 +6,9 @@ import auth from '@react-native-firebase/auth';
 import { useUser } from '../../../UserContext';
 import api_call from '../../../api';
 const SLIDER_ITEMS = [
-  { id: '1', name: "Diet Plan",       iconName: "file-document-outline", screen: 'FoodRecommendation' },
-  { id: '2', name: "Insights",        iconName: "chart-bar",     screen: null },
-  { id: '3', name: "Recipes",         iconName: "silverware-fork-knife",    screen: null },
-  { id: '4', name: "Snap Gallery",    iconName: "image-multiple-outline", screen: null },
-  { id: '5', name: "Meals",           iconName: "bookmark-outline",      screen: null },
+  { id: '1', name: "Diet Plan", iconName: "file-document-outline", screen: 'FoodRecommendation' },
+  { id: '2', name: "Calorie Log", iconName: "chart-bar", screen: 'CalorieLog' },
+  { id: '3', name: "Recipes", iconName: "silverware-fork-knife", screen: 'RecipeGenerator' },
 ];
 
 // ── Circular progress (simplified with border approach) ─────────────────────
@@ -38,8 +36,8 @@ const MacroRow = ({ protein, carbs, fat, proteinGoal, carbGoal, fatGoal }) => (
   <View style={styles.macroRow}>
     {[
       { label: 'Protein', value: protein, goal: proteinGoal, color: '#0066EE' },
-      { label: 'Carbs',   value: carbs,   goal: carbGoal,    color: '#5A8BFF' },
-      { label: 'Fat',     value: fat,     goal: fatGoal,     color: '#29B6F6' },
+      { label: 'Carbs', value: carbs, goal: carbGoal, color: '#5A8BFF' },
+      { label: 'Fat', value: fat, goal: fatGoal, color: '#29B6F6' },
     ].map(m => (
       <View key={m.label} style={styles.macroPill}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
@@ -61,12 +59,12 @@ const DietTracker = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
 
   // Pull from user profile, fall back to sensible defaults
-  const calorieGoal   =  userData?.personalPlan?.dailyCalories || 2000;
-  const proteinGoal   = userData?.personalPlan?.proteinGrams || 75;
-  const carbGoal      = userData?.personalPlan?.carbGrams || 275;
-  const fatGoal       = userData?.personalPlan?.fatGrams || 61;
+  const calorieGoal = userData?.personalPlan?.dailyCalories || 2000;
+  const proteinGoal = userData?.personalPlan?.proteinGrams || 75;
+  const carbGoal = userData?.personalPlan?.carbGrams || 275;
+  const fatGoal = userData?.personalPlan?.fatGrams || 61;
 
-  useFocusEffect( 
+  useFocusEffect(
     useCallback(() => {
       let isActive = true;
       const fetchLog = async () => {
@@ -134,25 +132,25 @@ const DietTracker = ({ navigation }) => {
 
   const dailyTotals = dietLog?.dailyTotals || {};
   const caloriesConsumed = Math.round(dailyTotals.calories || 0);
-  const proteinConsumed  = Math.round(dailyTotals.proteinG || 0);
-  const carbConsumed     = Math.round(dailyTotals.carbsG || 0);
-  const fatConsumed      = Math.round(dailyTotals.fatG || 0);
+  const proteinConsumed = Math.round(dailyTotals.proteinG || 0);
+  const carbConsumed = Math.round(dailyTotals.carbsG || 0);
+  const fatConsumed = Math.round(dailyTotals.fatG || 0);
 
   const getMealTotal = (mealKey) => {
     if (!dietLog?.meals?.[mealKey]) return 0;
     return Math.round(dietLog.meals[mealKey].reduce((sum, item) => sum + (item.calories || 0), 0));
   };
-  
+
   const getMealItems = (mealKey) => {
     return dietLog?.meals?.[mealKey] || [];
   };
 
   const MEAL_SECTIONS = [
-    { title: 'Breakfast', key: 'breakfast',   total: Math.round(calorieGoal * 0.25) },
-    { title: 'Snacks',    key: 'snacks',      total: Math.round(calorieGoal * 0.10) },
-    { title: 'Lunch',     key: 'lunch',       total: Math.round(calorieGoal * 0.30) },
-    { title: 'Dinner',    key: 'dinner',      total: Math.round(calorieGoal * 0.30) },
-    { title: 'Pre Workout',key:'pre_workout', total: Math.round(calorieGoal * 0.05) },
+    { title: 'Breakfast', key: 'breakfast', total: Math.round(calorieGoal * 0.25) },
+    { title: 'Snacks', key: 'snacks', total: Math.round(calorieGoal * 0.10) },
+    { title: 'Lunch', key: 'lunch', total: Math.round(calorieGoal * 0.30) },
+    { title: 'Dinner', key: 'dinner', total: Math.round(calorieGoal * 0.30) },
+    { title: 'Pre Workout', key: 'pre_workout', total: Math.round(calorieGoal * 0.05) },
   ];
 
   return (
@@ -186,17 +184,19 @@ const DietTracker = ({ navigation }) => {
 
       {/* ── Quick Action Chips ── */}
       <ScrollView
-        horizontal showsHorizontalScrollIndicator={false}
+        horizontal
+        showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.horizontalScroll}
       >
-        {SLIDER_ITEMS.map((item) => (
+        {SLIDER_ITEMS.map(item => (
           <TouchableOpacity
             key={item.id}
             style={styles.actionCard}
+            activeOpacity={0.7}
             onPress={() => item.screen && navigation.navigate(item.screen)}
           >
             <View style={styles.iconBackground}>
-              <Icon name={item.iconName} size={22} color="#fff" />
+              <Icon name={item.iconName} size={18} color="#fff" />
             </View>
             <Text style={styles.actionText}>{item.name}</Text>
           </TouchableOpacity>
@@ -300,19 +300,19 @@ const styles = StyleSheet.create({
     elevation: 2, marginBottom: 14,
     shadowColor: '#0066EE', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8,
   },
-  ringContainer:  { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  ringContainer: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   ringOuter: {
     width: 80, height: 80, borderRadius: 40,
     borderWidth: 5, borderColor: '#0066EE',
     justifyContent: 'center', alignItems: 'center',
   },
-  ringInner:    { alignItems: 'center' },
-  ringValue:    { fontSize: 18, fontWeight: '800', color: '#111' },
-  ringLabel:    { fontSize: 10, color: '#999' },
-  ringTexts:    { flex: 1 },
+  ringInner: { alignItems: 'center' },
+  ringValue: { fontSize: 18, fontWeight: '800', color: '#111' },
+  ringLabel: { fontSize: 10, color: '#999' },
+  ringTexts: { flex: 1 },
   ringGoalText: { fontSize: 14, color: '#666' },
-  ringGoalNum:  { fontWeight: '700', color: '#111' },
-  ringRemText:  { fontSize: 13, color: '#0066EE', fontWeight: '600', marginTop: 4 },
+  ringGoalNum: { fontWeight: '700', color: '#111' },
+  ringRemText: { fontSize: 13, color: '#0066EE', fontWeight: '600', marginTop: 4 },
 
   // Macros
   macroRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14, gap: 10 },
@@ -373,9 +373,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: '#0066EE', borderRadius: 16, padding: 16, marginBottom: 16,
   },
-  recBannerText:  { flex: 1 },
+  recBannerText: { flex: 1 },
   recBannerTitle: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  recBannerSub:   { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2 },
+  recBannerSub: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2 },
 
   // Meal sections
   mealContainer: { marginBottom: 16 },
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   mealCalText: { color: '#666', fontSize: 13 },
 
   progressTrack: { height: 4, backgroundColor: '#EEE', borderRadius: 2, marginBottom: 8 },
-  progressFill:  { height: 4, backgroundColor: '#0066EE', borderRadius: 2 },
+  progressFill: { height: 4, backgroundColor: '#0066EE', borderRadius: 2 },
 
   mealItem: {
     backgroundColor: '#fff', padding: 14, borderRadius: 10,

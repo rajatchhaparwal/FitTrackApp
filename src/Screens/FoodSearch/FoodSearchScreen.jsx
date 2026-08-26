@@ -17,8 +17,12 @@ const MacroPill = ({ label, value, color }) => (
 );
 
 // ── Food Result Card ──────────────────────────────────────────────────────────
-const FoodCard = ({ item, onAdd }) => (
-  <Animated.View style={styles.foodCard}>
+const FoodCard = ({ item, onPress }) => (
+  <TouchableOpacity
+    style={styles.foodCard}
+    activeOpacity={0.8}
+    onPress={() => onPress(item)}
+  >
     <View style={styles.foodCardLeft}>
       <View style={styles.foodIconCircle}>
         <Text style={styles.foodEmoji}>
@@ -38,15 +42,11 @@ const FoodCard = ({ item, onAdd }) => (
     <View style={styles.foodCardRight}>
       <Text style={styles.foodCalories}>{Math.round(item.calories)}</Text>
       <Text style={styles.foodKcal}>kcal</Text>
-      <TouchableOpacity
-        style={styles.addBtn}
-        activeOpacity={0.8}
-        onPress={() => onAdd(item)}
-      >
+      <View style={styles.addBtn}>
         <Icon name="plus" size={18} color="#fff" />
-      </TouchableOpacity>
+      </View>
     </View>
-  </Animated.View>
+  </TouchableOpacity>
 );
 
 // ── Empty State ───────────────────────────────────────────────────────────────
@@ -117,52 +117,10 @@ const FoodSearchScreen = ({ navigation, route }) => {
     }, 500);
   }, []);
 
-  // ── Add food to meal ─────────────────────────────────────────────────────────
-  const handleAdd = useCallback(async (food) => {
-    try {
-      const user = auth().currentUser;
-      if (!user) {
-        Alert.alert('Session Expired', 'Please log in again.');
-        return;
-      }
-      
-      const response = await fetch(`${api_call}/DietLog/food`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'firebase-uid': user.uid,
-        },
-        body: JSON.stringify({
-          mealType: mealType,
-          food: {
-            name: food.name,
-            quantity: 100,
-            unit: 'grams',
-            calories: food.calories,
-            protein: food.protein,
-            carbs: food.carbs,
-            fat: food.fat,
-            source: 'search'
-          }
-        })
-      });
-
-      const resData = await response.json();
-      if (response.ok && resData.success) {
-        setAddedItems(prev => [...prev, food.id]);
-        Alert.alert(
-          '✅ Added!',
-          `${food.name} (${Math.round(food.calories)} kcal) added to ${mealType}`,
-          [{ text: 'OK' }]
-        );
-      } else {
-        throw new Error(resData.message || 'Failed to save food');
-      }
-    } catch (err) {
-      console.error('Error logging food:', err);
-      Alert.alert('Error', 'Could not add food to your daily log. Please try again.');
-    }
-  }, [mealType]);
+  // ── Navigate to Detail Screen ────────────────────────────────────────────────
+  const handleCardPress = useCallback((food) => {
+    navigation.navigate('FoodDetail', { food, defaultMealType: mealType });
+  }, [navigation, mealType]);
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -213,7 +171,7 @@ const FoodSearchScreen = ({ navigation, route }) => {
         renderItem={({ item }) => (
           <FoodCard
             item={item}
-            onAdd={handleAdd}
+            onPress={handleCardPress}
           />
         )}
         ListEmptyComponent={

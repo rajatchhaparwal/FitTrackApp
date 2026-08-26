@@ -65,11 +65,15 @@ export function evaluateStaticHold(landmarks, thresholds = {}) {
   const alignmentAngle = calculateAngle(shoulder, hip, ankle);
   if (alignmentAngle == null) return { formScore: 0, isAligned: false };
 
+  // For plank, user must be horizontal. Compare X vs Y distance.
+  const isHorizontal = Math.abs(shoulder.y - ankle.y) < Math.abs(shoulder.x - ankle.x);
+
   const deviation = Math.abs(alignmentAngle - perfect_score_angle);
   const formScore = Math.max(0, Math.round(100 - (deviation / max_allowable_deviation) * 100));
+  
   return {
-    formScore,
-    isAligned: deviation <= max_allowable_deviation,
+    formScore: isHorizontal ? formScore : 0,
+    isAligned: isHorizontal && (deviation <= max_allowable_deviation),
     alignmentAngle,
   };
 }
@@ -132,15 +136,18 @@ export function analyzePoseFrame(landmarks, poseConfig, repCounter) {
   let repCount = repCounter?.count ?? 0;
   let formScore = 100;
   let currentAngle = getPrimaryAngle(landmarks, metrics.target_angle_points);
+  let isAligned = false;
 
   if (evaluationType === 'dynamic_rep_counter' && repCounter) {
     const result = repCounter.update(currentAngle);
     repCount = result.repCount;
     formScore = Math.max(0, 100 - activeCorrections.length * 20);
+    isAligned = true; // For dynamic reps, time is always running or we track by rep count
   } else if (evaluationType === 'static_hold_alignment') {
     const hold = evaluateStaticHold(landmarks, thresholds);
     formScore = hold.formScore;
     currentAngle = hold.alignmentAngle;
+    isAligned = hold.isAligned;
   }
 
   return {
@@ -149,6 +156,7 @@ export function analyzePoseFrame(landmarks, poseConfig, repCounter) {
     currentAngle,
     activeCorrections,
     evaluationType,
+    isAligned,
     formIssues: activeCorrections.map((c) => c.trigger_flag),
   };
 }

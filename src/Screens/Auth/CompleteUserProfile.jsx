@@ -12,6 +12,7 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
   Keyboard,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -294,7 +295,7 @@ export default function CompleteUserProfile({ onOnboardingComplete }) {
   };
 
   const inputProps = {
-    placeholderTextColor: '#B0B0B0',
+    placeholderTextColor: '#64748B',
     style: styles.input,
   };
 
@@ -550,19 +551,34 @@ export default function CompleteUserProfile({ onOnboardingComplete }) {
   const buttonLabel = () => {
     if (isSubmitting) return '';
     if (isLastStep) return 'Start My Journey';
-    if (isInsightStep) return 'Continue';
     return 'Continue';
   };
 
+  // Full-screen image insight screen with overlaid text
+  if (isInsightStep) {
+    return (
+      <OnboardingInsightScreen
+        formData={formData}
+        phase={step.phase}
+        onNext={handleNext}
+        onBack={handleBack}
+        progressPercent={progressPercent}
+        isSubmitting={isSubmitting}
+        isLastStep={isLastStep}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#090D16" />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.flex}
         >
           <View style={styles.topBar}>
-            <Text style={styles.brand}>FitTrack</Text>
+            <Text style={styles.brand}>MyFitFly</Text>
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
             </View>
@@ -574,11 +590,7 @@ export default function CompleteUserProfile({ onOnboardingComplete }) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {isInsightStep ? (
-              <OnboardingInsightScreen formData={formData} phase={step.phase} />
-            ) : (
-              renderFormContent(step.formId)
-            )}
+            {renderFormContent(step.formId)}
           </ScrollView>
 
           <View style={styles.footer}>
@@ -588,7 +600,7 @@ export default function CompleteUserProfile({ onOnboardingComplete }) {
                 onPress={handleBack}
                 disabled={isSubmitting}
               >
-                <Icon name="chevron-left" size={22} color="#666" />
+                <Icon name="chevron-left" size={22} color="#94A3B8" />
               </TouchableOpacity>
             ) : (
               <View style={styles.backSpacer} />
@@ -613,36 +625,36 @@ export default function CompleteUserProfile({ onOnboardingComplete }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: '#090D16' },
   flex: { flex: 1 },
   topBar: { paddingHorizontal: 24, paddingTop: 4, paddingBottom: 12 },
-  brand: { fontSize: 18, fontWeight: '800', color: '#5A8BFF', marginBottom: 12 },
+  brand: { fontSize: 18, fontWeight: '800', color: '#5A8BFF', marginBottom: 12, letterSpacing: 0.5 },
   progressTrack: {
     height: 4,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#1E293B',
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: { height: '100%', backgroundColor: '#5A8BFF', borderRadius: 2 },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 24, paddingBottom: 20 },
-  field: { marginBottom: 14 },
+  field: { marginBottom: 16 },
   fieldLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#888',
+    color: '#94A3B8',
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  miniLabel: { fontSize: 12, fontWeight: '600', color: '#999', marginBottom: 6 },
+  miniLabel: { fontSize: 12, fontWeight: '600', color: '#64748B', marginBottom: 6 },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: '#131A2A',
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#ECECEC',
+    borderColor: '#222F47',
     paddingHorizontal: 14,
     minHeight: 52,
   },
@@ -650,7 +662,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#1A1A1A',
+    color: '#FFFFFF',
     fontWeight: '500',
     paddingVertical: 14,
   },
@@ -662,44 +674,44 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#FFF',
+    backgroundColor: '#131A2A',
     borderWidth: 1.5,
-    borderColor: '#ECECEC',
+    borderColor: '#222F47',
     alignItems: 'center',
   },
-  unitBtnSel: { backgroundColor: '#EEF3FF', borderColor: '#5A8BFF' },
-  unitBtnText: { fontSize: 14, fontWeight: '700', color: '#888' },
+  unitBtnSel: { backgroundColor: 'rgba(90, 139, 255, 0.2)', borderColor: '#5A8BFF' },
+  unitBtnText: { fontSize: 14, fontWeight: '700', color: '#94A3B8' },
   unitBtnTextSel: { color: '#5A8BFF' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#FFF',
+    backgroundColor: '#131A2A',
     borderWidth: 1.5,
-    borderColor: '#ECECEC',
+    borderColor: '#222F47',
   },
   chipSelected: { backgroundColor: '#5A8BFF', borderColor: '#5A8BFF' },
-  chipText: { fontSize: 14, fontWeight: '600', color: '#555' },
-  chipTextSelected: { color: '#FFF' },
+  chipText: { fontSize: 14, fontWeight: '600', color: '#CBD5E1' },
+  chipTextSelected: { color: '#FFFFFF' },
   habitsHead: { marginTop: 16, marginBottom: 10 },
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
     borderRadius: 14,
-    backgroundColor: '#FFF',
+    backgroundColor: '#131A2A',
     borderWidth: 1.5,
-    borderColor: '#ECECEC',
+    borderColor: '#222F47',
     marginBottom: 8,
   },
-  optionRowSel: { backgroundColor: '#EEF3FF', borderColor: '#5A8BFF' },
+  optionRowSel: { backgroundColor: 'rgba(90, 139, 255, 0.18)', borderColor: '#5A8BFF' },
   radio: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#CCC',
+    borderColor: '#475569',
     marginRight: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -707,9 +719,9 @@ const styles = StyleSheet.create({
   radioSel: { borderColor: '#5A8BFF' },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#5A8BFF' },
   optionText: { flex: 1 },
-  optionTitle: { fontSize: 15, fontWeight: '700', color: '#333' },
+  optionTitle: { fontSize: 15, fontWeight: '700', color: '#F1F5F9' },
   optionTitleSel: { color: '#5A8BFF' },
-  optionHint: { fontSize: 12, color: '#999', marginTop: 2 },
+  optionHint: { fontSize: 12, color: '#64748B', marginTop: 2 },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -722,9 +734,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#162032',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#222F47',
   },
   primaryBtn: {
     flex: 1,
@@ -733,7 +747,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#5A8BFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
   },
-  primaryBtnOff: { backgroundColor: '#B0C4FF' },
+  primaryBtnOff: { backgroundColor: '#3554A5' },
   primaryBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
 });

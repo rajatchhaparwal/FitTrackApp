@@ -2,7 +2,14 @@ import {
   getAuth,
   onAuthStateChanged,
   signOut as firebaseSignOut,
+  signInWithPhoneNumber,
 } from '@react-native-firebase/auth';
+
+// Bypass Play Integrity & reCAPTCHA only in development (USB/emulator).
+// In production (release APK), real Firebase Phone Auth is used.
+if (__DEV__) {
+  getAuth().settings.appVerificationDisabledForTesting = true;
+}
 
 let confirmationResult = null;
 let lastPhoneNumber = null;
@@ -34,7 +41,7 @@ export function getFirebaseAuthErrorMessage(error) {
 }
 
 export async function sendPhoneOtp(phoneNumber) {
-  confirmationResult = await getAuth().signInWithPhoneNumber(phoneNumber);
+  confirmationResult = await signInWithPhoneNumber(getAuth(), phoneNumber);
   lastPhoneNumber = phoneNumber;
   return confirmationResult;
 }

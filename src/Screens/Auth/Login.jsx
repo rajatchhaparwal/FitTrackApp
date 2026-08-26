@@ -50,7 +50,7 @@ const Login = ({ navigation }) => {
           style={styles.content}
         >
           <View style={styles.headerContainer}>
-            <Text style={styles.title}>FitTrack</Text>
+            <Text style={styles.title}>MyFitFly</Text>
             <Text style={styles.subtitle}>
               Enter your phone number to start your fitness journey
             </Text>

@@ -17,6 +17,8 @@ import {
   clearNotificationsHistory,
   markAllNotificationsAsRead,
   setupDefaultReminders,
+  sendTestNotification,
+  requestNotificationPermission,
 } from '../../services/notificationService';
 
 const NotificationsScreen = ({ navigation }) => {
@@ -25,13 +27,11 @@ const NotificationsScreen = ({ navigation }) => {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      // Initialize some default alerts (Eat Meal, Workout) if first launch
+      await requestNotificationPermission();
       await setupDefaultReminders();
-      // Fetch latest logs from storage
       const logs = await getNotificationsHistory();
       setNotifications(logs);
-      
-      // Auto mark as read when entering the page
+
       if (logs.some(n => !n.read)) {
         const updated = await markAllNotificationsAsRead();
         setNotifications(updated);
@@ -48,6 +48,12 @@ const NotificationsScreen = ({ navigation }) => {
       fetchNotifications();
     }, [fetchNotifications])
   );
+
+  // const handleTestAlert = async () => {
+  //   await sendTestNotification();
+  //   const updated = await getNotificationsHistory();
+  //   setNotifications(updated);
+  // };
 
   const handleClearAll = () => {
     Alert.alert(
@@ -122,12 +128,6 @@ const NotificationsScreen = ({ navigation }) => {
           </TouchableOpacity>
         )}
       </View>
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#0066EE" />
-        </View>
-      ) : (
         <FlatList
           data={notifications}
           keyExtractor={(item) => item.id}
@@ -138,14 +138,13 @@ const NotificationsScreen = ({ navigation }) => {
               <View style={styles.emptyIconCircle}>
                 <Icon name="bell-off-outline" size={48} color="#94A3B8" />
               </View>
-              <Text style={styles.emptyTitle}>No Notifications</Text>
+              <Text style={styles.emptyTitle}>No Notifications Yet</Text>
               <Text style={styles.emptySubtitle}>
-                You will receive alerts here when you schedule water goals, meals, and exercise plans.
+                Notifications will appear here.
               </Text>
             </View>
           }
         />
-      )}
     </SafeAreaView>
   );
 };
@@ -154,6 +153,30 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+  },
+  actionStrip: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  testBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0066EE',
+    borderRadius: 14,
+    paddingVertical: 12,
+    gap: 8,
+    elevation: 2,
+    shadowColor: '#0066EE',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  testBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
   header: {
     flexDirection: 'row',
